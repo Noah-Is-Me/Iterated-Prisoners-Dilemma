@@ -1,96 +1,57 @@
 #include <stdio.h>
 #include <iostream>
-#include <string>
-#include <functional>
-#include <unordered_map>
+#include <array>
+#include <memory>
 
-enum Move
-{
-    cooperate,
-    defect
-};
+#include "strategy.h"
 
-class Strategy
-{
-public:
-    std::string name;
-    int points;
-
-    Move firstMove;
-    Move nextMove;
-
-    virtual void onCooperate() = 0;
-    virtual void onDefect() = 0;
-
-    // Virtual destructor to allow proper cleanup of derived class objects
-    virtual ~Strategy() = default;
-};
-
-class TitForTat : public Strategy
-{
-public:
-    TitForTat()
-    {
-        name = "Tit-for-Tat";
-        nextMove = cooperate;
-    }
-
-    void onCooperate() override
-    {
-        nextMove = cooperate;
-    }
-
-    void onDefect() override
-    {
-        nextMove = defect;
-    }
-};
-
-class ForgivingTitForTat : public Strategy
-{
-public:
-    ForgivingTitForTat()
-    {
-        name = "Forgiving Tit-for-Tat";
-        nextMove = cooperate;
-    }
-
-    void onCooperate() override
-    {
-        nextMove = cooperate;
-    }
-
-    void onDefect() override
-    {
-
-        nextMove = defect;
-    }
-};
-
-int main()
-{
-    printf("hello world!");
-
-    std::unordered_map<std::string, Strategy> strategies;
-
-    for (int i = 0; i < 1; i++)
-    {
-        // runIteration(tit_for_tat, forgiving_tit_for_tat);
-    }
-
-    return 1;
-}
-
-/*
-void runIteration(Strategy s1, Strategy s2)
+void runIteration(Strategy &s1, Strategy &s2)
 {
     Move s1Move = s1.nextMove;
     Move s2Move = s2.nextMove;
 
-    switch (s1Move)
-    {
-    case cooperate:
-        s2.onCooperate();
-    }
+    s1.onMove(s2Move);
+    s2.onMove(s1Move);
+
+    s1.points += pointMatrix[s1Move][s2Move];
+    s2.points += pointMatrix[s2Move][s1Move];
+
+    // std::cout << s1.name << " Points: " << s1.points << ", "
+    //           << s2.name << " Points: " << s2.points << std::endl;
 }
-*/
+
+int main()
+{
+    std::array<std::unique_ptr<Strategy>, 8> strategies = {
+        std::make_unique<TitForTat>(),
+        std::make_unique<ForgivingTitForTat>(),
+        std::make_unique<AlwaysDefect>(),
+        std::make_unique<TitForTwoTats>(),
+        std::make_unique<GrimTrigger>(),
+        std::make_unique<PavLov>(),
+        std::make_unique<AlwaysCooperate>(),
+        std::make_unique<Random>()};
+
+    for (int i = 0; i < strategies.size(); i++)
+    {
+        for (int j = i + 1; j < strategies.size(); j++)
+        {
+            Strategy &s1 = *strategies[i];
+            Strategy &s2 = *strategies[j];
+
+            s1.reset();
+            s2.reset();
+
+            for (int u = 0; u < 100; u++)
+            {
+                runIteration(s1, s2);
+            }
+
+            std::cout << s1.name << " Points: " << s1.points << ", "
+                      << s2.name << " Points: " << s2.points << "\n"
+                      << std::endl;
+        }
+    }
+
+    return 0;
+}
