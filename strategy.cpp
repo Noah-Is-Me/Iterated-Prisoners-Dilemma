@@ -154,3 +154,142 @@ void Random::onDefect()
 {
     nextMove = randomChance(0.5) ? cooperate : defect;
 }
+
+SoftMajority::SoftMajority()
+{
+    name = "Soft Majority";
+    firstMove = cooperate;
+
+    consecutiveDefectCount = 0;
+}
+
+void SoftMajority::onCooperate()
+{
+    consecutiveDefectCount = 0;
+    nextMove = cooperate;
+}
+
+void SoftMajority::onDefect()
+{
+    if (consecutiveDefectCount++ > 3)
+        nextMove = defect;
+    else
+        nextMove = cooperate;
+}
+
+// RandomizedTitForTat::RandomizedTitForTat()
+// {
+//     name = "Randomized Tit-for-Tat";
+//     firstMove = cooperate;
+// }
+
+// void RandomizedTitForTat::onCooperate()
+// {
+//     if (randomChance(0.10))
+//     {
+//         nextMove = defect;
+//     }
+// }
+
+// void RandomizedTitForTat::onDefect()
+// {
+//     if (nextMove == cooperate)
+//         nextMove = defect;
+//     else
+//         nextMove = cooperate;
+// }
+
+// PavLov::PavLov()
+// {
+//     name = "PavLov";
+//     firstMove = cooperate;
+// }
+
+// void PavLov::onCooperate()
+// {
+//     return; // no change
+// }
+
+// void PavLov::onDefect()
+// {
+//     if (nextMove == cooperate)
+//         nextMove = defect;
+//     else
+//         nextMove = cooperate;
+// }
+
+// PavLov::PavLov()
+// {
+//     name = "PavLov";
+//     firstMove = cooperate;
+// }
+
+// void PavLov::onCooperate()
+// {
+//     return; // no change
+// }
+
+// void PavLov::onDefect()
+// {
+//     if (nextMove == cooperate)
+//         nextMove = defect;
+//     else
+//         nextMove = cooperate;
+// }
+
+// PavLov::PavLov()
+// {
+//     name = "PavLov";
+//     firstMove = cooperate;
+// }
+
+// void PavLov::onCooperate()
+// {
+//     return; // no change
+// }
+
+// void PavLov::onDefect()
+// {
+//     if (nextMove == cooperate)
+//         nextMove = defect;
+//     else
+//         nextMove = cooperate;
+// }
+
+// PavLov::PavLov()
+// {
+//     name = "PavLov";
+//     firstMove = cooperate;
+// }
+
+// void PavLov::onCooperate()
+// {
+//     return; // no change
+// }
+
+// void PavLov::onDefect()
+// {
+//     if (nextMove == cooperate)
+//         nextMove = defect;
+//     else
+//         nextMove = cooperate;
+// }
+
+// PavLov::PavLov()
+// {
+//     name = "PavLov";
+//     firstMove = cooperate;
+// }
+
+// void PavLov::onCooperate()
+// {
+//     return; // no change
+// }
+
+// void PavLov::onDefect()
+// {
+//     if (nextMove == cooperate)
+//         nextMove = defect;
+//     else
+//         nextMove = cooperate;
+// }

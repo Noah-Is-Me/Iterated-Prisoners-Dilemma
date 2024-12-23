@@ -105,4 +105,85 @@ public:
     void onDefect() override;
 };
 
+class SoftMajority : public Strategy
+{
+public:
+    SoftMajority();
+    int consecutiveDefectCount;
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+// class RandomizedTitForTat : public Strategy
+// {
+// public:
+//     RandomizedTitForTat();
+
+//     void onCooperate() override;
+
+//     void onDefect() override;
+// };
+
+// class ContriteTitForTat : public Strategy
+// {
+// public:
+//     ContriteTitForTat();
+
+//     void onCooperate() override;
+
+//     void onDefect() override;
+// };
+
+// class GenerousTitForTat : public Strategy
+// {
+// public:
+//     GenerousTitForTat();
+
+//     void onCooperate() override;
+
+//     void onDefect() override;
+// };
+
+// class Echo : public Strategy
+// {
+// public:
+//     Echo();
+
+//     void onCooperate() override;
+
+//     void onDefect() override;
+// };
+
+// class SuspiciousTitForTat : public Strategy
+// {
+// public:
+//     SuspiciousTitForTat();
+
+//     void onCooperate() override;
+
+//     void onDefect() override;
+// };
+
+// class AveragedCooperation : public Strategy
+// {
+// public:
+//     AveragedCooperation();
+
+//     void onCooperate() override;
+
+//     void onDefect() override;
+// };
+
+// class Prober : public Strategy
+// {
+// public:
+//     Prober();
+
+//     void onCooperate() override;
+
+//     void onDefect() override;
+// };
+
 #endif
