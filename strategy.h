@@ -1,7 +1,10 @@
 #ifndef STRATEGY_H
 #define STRATEGY_H
 
+#include <functional>
 #include <string>
+#include <memory>
+
 #include "helper.h"
 
 class Strategy
@@ -21,6 +24,15 @@ public:
 private:
     virtual void onCooperate() = 0;
     virtual void onDefect() = 0;
+};
+
+class StrategyData
+{
+public:
+    std::string name;
+    std::vector<int> totalPoints;
+    std::vector<double> averagePoints;
+    std::function<std::unique_ptr<Strategy>()> constructor;
 };
 
 class TitForTat : public Strategy
@@ -53,38 +65,6 @@ public:
     void onDefect() override;
 };
 
-class TitForTwoTats : public Strategy
-{
-public:
-    TitForTwoTats();
-    int turnNum;
-
-    void onCooperate() override;
-
-    void onDefect() override;
-};
-
-class GrimTrigger : public Strategy
-{
-public:
-    GrimTrigger();
-    bool triggered;
-
-    void onCooperate() override;
-
-    void onDefect() override;
-};
-
-class PavLov : public Strategy
-{
-public:
-    PavLov();
-
-    void onCooperate() override;
-
-    void onDefect() override;
-};
-
 class AlwaysCooperate : public Strategy
 {
 public:
@@ -105,10 +85,72 @@ public:
     void onDefect() override;
 };
 
-class SoftMajority : public Strategy
+class ProbabilityCooperator : public Strategy
 {
 public:
-    SoftMajority();
+    ProbabilityCooperator();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class ProbabilityDefector : public Strategy
+{
+public:
+    ProbabilityDefector();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class SuspiciousTitForTat : public Strategy
+{
+public:
+    SuspiciousTitForTat();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class GenerousTitForTat : public Strategy
+{
+public:
+    GenerousTitForTat();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class GradualTitForTat : public Strategy
+{
+public:
+    GradualTitForTat();
+    int continueDefecting;
+    int highestDefectStreak;
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class ImperfectTitForTat : public Strategy
+{
+public:
+    ImperfectTitForTat();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class TitForTwoTats : public Strategy
+{
+public:
+    TitForTwoTats();
     int consecutiveDefectCount;
 
     void onCooperate() override;
@@ -116,74 +158,144 @@ public:
     void onDefect() override;
 };
 
-// class RandomizedTitForTat : public Strategy
-// {
-// public:
-//     RandomizedTitForTat();
+class TwoTitsForTat : public Strategy
+{
+public:
+    TwoTitsForTat();
+    bool defectAgain;
 
-//     void onCooperate() override;
+    void onCooperate() override;
 
-//     void onDefect() override;
-// };
+    void onDefect() override;
+};
 
-// class ContriteTitForTat : public Strategy
-// {
-// public:
-//     ContriteTitForTat();
+/*
+class OmegaTitForTat : public Strategy
+{
+public:
+    OmegaTitForTat();
 
-//     void onCooperate() override;
+    void onCooperate() override;
 
-//     void onDefect() override;
-// };
+    void onDefect() override;
+};
+*/
 
-// class GenerousTitForTat : public Strategy
-// {
-// public:
-//     GenerousTitForTat();
+class GrimTrigger : public Strategy
+{
+public:
+    GrimTrigger();
+    bool triggered;
 
-//     void onCooperate() override;
+    void onCooperate() override;
 
-//     void onDefect() override;
-// };
+    void onDefect() override;
+};
 
-// class Echo : public Strategy
-// {
-// public:
-//     Echo();
+class Pavlov : public Strategy
+{
+public:
+    Pavlov();
 
-//     void onCooperate() override;
+    void onCooperate() override;
 
-//     void onDefect() override;
-// };
+    void onDefect() override;
+};
 
-// class SuspiciousTitForTat : public Strategy
-// {
-// public:
-//     SuspiciousTitForTat();
+/*
+class NPavlov : public Strategy
+{
+public:
+    NPavlov();
 
-//     void onCooperate() override;
+    void onCooperate() override;
 
-//     void onDefect() override;
-// };
+    void onDefect() override;
+};
+*/
 
-// class AveragedCooperation : public Strategy
-// {
-// public:
-//     AveragedCooperation();
+/*
+class AdaptivePavlov : public Strategy
+{
+public:
+    AdaptivePavlov();
 
-//     void onCooperate() override;
+    void onCooperate() override;
 
-//     void onDefect() override;
-// };
+    void onDefect() override;
+};
+*/
 
-// class Prober : public Strategy
-// {
-// public:
-//     Prober();
+/*
+class Reactive : public Strategy
+{
+public:
+    Reactive();
 
-//     void onCooperate() override;
+    void onCooperate() override;
 
-//     void onDefect() override;
-// };
+    void onDefect() override;
+};
+
+class MemoryOne : public Strategy
+{
+public:
+    MemoryOne();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class ZeroDeterminant : public Strategy
+{
+public:
+    ZeroDeterminant();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class Equalizer : public Strategy
+{
+public:
+    Equalizer();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class Extortionary : public Strategy
+{
+public:
+    Extortionary();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class Generous : public Strategy
+{
+public:
+    Generous();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+
+class Generous : public Strategy
+{
+public:
+    Good();
+
+    void onCooperate() override;
+
+    void onDefect() override;
+};
+*/
 
 #endif

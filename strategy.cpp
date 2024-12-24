@@ -65,64 +65,6 @@ void AlwaysDefect::onDefect()
     nextMove = defect;
 }
 
-TitForTwoTats::TitForTwoTats()
-{
-    name = "Tit-for-Two-Tats";
-    firstMove = cooperate;
-    turnNum = 0;
-}
-
-void TitForTwoTats::onCooperate()
-{
-    turnNum++;
-    nextMove = defect;
-}
-
-void TitForTwoTats::onDefect()
-{
-    if (turnNum++ < 2)
-        nextMove = cooperate;
-    else
-        nextMove = defect;
-}
-
-GrimTrigger::GrimTrigger()
-{
-    name = "Grim Trigger";
-    firstMove = cooperate;
-    triggered = false;
-}
-
-void GrimTrigger::onCooperate()
-{
-    nextMove = triggered ? defect : cooperate;
-}
-
-void GrimTrigger::onDefect()
-{
-    triggered = true;
-    nextMove = defect;
-}
-
-PavLov::PavLov()
-{
-    name = "PavLov";
-    firstMove = cooperate;
-}
-
-void PavLov::onCooperate()
-{
-    return; // no change
-}
-
-void PavLov::onDefect()
-{
-    if (nextMove == cooperate)
-        nextMove = defect;
-    else
-        nextMove = cooperate;
-}
-
 AlwaysCooperate::AlwaysCooperate()
 {
     name = "Always Cooperate";
@@ -155,141 +97,380 @@ void Random::onDefect()
     nextMove = randomChance(0.5) ? cooperate : defect;
 }
 
-SoftMajority::SoftMajority()
+ProbabilityCooperator::ProbabilityCooperator()
 {
-    name = "Soft Majority";
+    name = "Probability Cooperator";
+    firstMove = randomChance(0.8) ? cooperate : defect;
+}
+
+void ProbabilityCooperator::onCooperate()
+{
+    if (randomChance(0.8))
+    {
+        nextMove = cooperate;
+    }
+    else
+        nextMove = defect;
+}
+
+void ProbabilityCooperator::onDefect()
+{
+    if (randomChance(0.8))
+    {
+        nextMove = cooperate;
+    }
+    else
+        nextMove = defect;
+}
+
+ProbabilityDefector::ProbabilityDefector()
+{
+    name = "Probability Defector";
+    firstMove = randomChance(0.8) ? defect : cooperate;
+}
+
+void ProbabilityDefector::onCooperate()
+{
+    if (randomChance(0.8))
+    {
+        nextMove = defect;
+    }
+    else
+        nextMove = cooperate;
+}
+
+void ProbabilityDefector::onDefect()
+{
+    if (randomChance(0.8))
+    {
+        nextMove = defect;
+    }
+    else
+        nextMove = cooperate;
+}
+
+SuspiciousTitForTat::SuspiciousTitForTat()
+{
+    name = "Suspicious Tit-for-Tat";
+    firstMove = defect;
+}
+
+void SuspiciousTitForTat::onCooperate()
+{
+    nextMove = cooperate;
+}
+
+void SuspiciousTitForTat::onDefect()
+{
+    nextMove = defect;
+}
+
+GenerousTitForTat::GenerousTitForTat()
+{
+    name = "Generous Tit-for-Tat";
+    firstMove = cooperate;
+}
+
+void GenerousTitForTat::onCooperate()
+{
+    nextMove = cooperate;
+}
+
+void GenerousTitForTat::onDefect()
+{
+    if (randomChance(
+            std::min(
+                (1.0 - 1.0 * (def_cop - cop_cop) / 1.0 * (cop_cop - cop_def)),
+                (0.0 + 1.0 * (cop_cop - def_def) / 1.0 * (def_cop - def_def)))))
+    {
+        nextMove = cooperate;
+    }
+    else
+        nextMove = defect;
+}
+
+GradualTitForTat::GradualTitForTat()
+{
+    name = "Gradual Tit-for-Tat";
     firstMove = cooperate;
 
+    continueDefecting = 0;
+    highestDefectStreak = 0;
+}
+
+void GradualTitForTat::onCooperate()
+{
+    continueDefecting--;
+
+    if (continueDefecting > 0)
+        nextMove = defect;
+    else
+    {
+        nextMove = cooperate;
+    }
+}
+
+void GradualTitForTat::onDefect()
+{
+    highestDefectStreak++;
+    continueDefecting = highestDefectStreak;
+
+    nextMove = defect;
+}
+
+ImperfectTitForTat::ImperfectTitForTat()
+{
+    name = "Randomized Tit-for-Tat";
+    firstMove = cooperate;
+}
+
+void ImperfectTitForTat::onCooperate()
+{
+    if (randomChance(0.10))
+    {
+        nextMove = defect;
+    }
+    else
+        nextMove = cooperate;
+}
+
+void ImperfectTitForTat::onDefect()
+{
+    if (randomChance(0.10))
+    {
+        nextMove = cooperate;
+    }
+    else
+        nextMove = defect;
+}
+
+TitForTwoTats::TitForTwoTats()
+{
+    name = "Tit-for-Two-Tats";
+    firstMove = cooperate;
     consecutiveDefectCount = 0;
 }
 
-void SoftMajority::onCooperate()
+void TitForTwoTats::onCooperate()
 {
     consecutiveDefectCount = 0;
     nextMove = cooperate;
 }
 
-void SoftMajority::onDefect()
+void TitForTwoTats::onDefect()
 {
-    if (consecutiveDefectCount++ > 3)
+    consecutiveDefectCount++;
+    if (consecutiveDefectCount > 2)
         nextMove = defect;
     else
         nextMove = cooperate;
 }
 
-// RandomizedTitForTat::RandomizedTitForTat()
-// {
-//     name = "Randomized Tit-for-Tat";
-//     firstMove = cooperate;
-// }
+TwoTitsForTat::TwoTitsForTat()
+{
+    name = "Two-Tits-for-Tat";
+    firstMove = cooperate;
+    defectAgain = false;
+}
 
-// void RandomizedTitForTat::onCooperate()
-// {
-//     if (randomChance(0.10))
-//     {
-//         nextMove = defect;
-//     }
-// }
+void TwoTitsForTat::onCooperate()
+{
+    if (defectAgain)
+        nextMove = defect;
+    else
+        nextMove = cooperate;
 
-// void RandomizedTitForTat::onDefect()
-// {
-//     if (nextMove == cooperate)
-//         nextMove = defect;
-//     else
-//         nextMove = cooperate;
-// }
+    defectAgain = false;
+}
 
-// PavLov::PavLov()
-// {
-//     name = "PavLov";
-//     firstMove = cooperate;
-// }
+void TwoTitsForTat::onDefect()
+{
+    defectAgain = true;
+    nextMove = defect;
+}
 
-// void PavLov::onCooperate()
-// {
-//     return; // no change
-// }
+/*
+OmegaTitForTat::OmegaTitForTat()
+{
+    name = "Omega Tit-for-Tat";
+    firstMove = cooperate;
+}
 
-// void PavLov::onDefect()
-// {
-//     if (nextMove == cooperate)
-//         nextMove = defect;
-//     else
-//         nextMove = cooperate;
-// }
+void OmegaTitForTat::onCooperate()
+{
+}
 
-// PavLov::PavLov()
-// {
-//     name = "PavLov";
-//     firstMove = cooperate;
-// }
+void OmegaTitForTat::onDefect()
+{
+}
+*/
 
-// void PavLov::onCooperate()
-// {
-//     return; // no change
-// }
+GrimTrigger::GrimTrigger()
+{
+    name = "Grim Trigger";
+    firstMove = cooperate;
+    triggered = false;
+}
 
-// void PavLov::onDefect()
-// {
-//     if (nextMove == cooperate)
-//         nextMove = defect;
-//     else
-//         nextMove = cooperate;
-// }
+void GrimTrigger::onCooperate()
+{
+    nextMove = triggered ? defect : cooperate;
+}
 
-// PavLov::PavLov()
-// {
-//     name = "PavLov";
-//     firstMove = cooperate;
-// }
+void GrimTrigger::onDefect()
+{
+    triggered = true;
+    nextMove = defect;
+}
 
-// void PavLov::onCooperate()
-// {
-//     return; // no change
-// }
+Pavlov::Pavlov()
+{
+    name = "Pavlov";
+    firstMove = cooperate;
+}
 
-// void PavLov::onDefect()
-// {
-//     if (nextMove == cooperate)
-//         nextMove = defect;
-//     else
-//         nextMove = cooperate;
-// }
+void Pavlov::onCooperate()
+{
+    return; // no change
+}
 
-// PavLov::PavLov()
-// {
-//     name = "PavLov";
-//     firstMove = cooperate;
-// }
+void Pavlov::onDefect()
+{
+    if (nextMove == defect)
+        nextMove = cooperate;
+    else
+        nextMove = defect;
+}
 
-// void PavLov::onCooperate()
-// {
-//     return; // no change
-// }
+/*
+NPavlov::NPavlov()
+{
+    name = "n-Pavlov";
+    firstMove = cooperate;
+}
 
-// void PavLov::onDefect()
-// {
-//     if (nextMove == cooperate)
-//         nextMove = defect;
-//     else
-//         nextMove = cooperate;
-// }
+void NPavlov::onCooperate()
+{
+}
 
-// PavLov::PavLov()
-// {
-//     name = "PavLov";
-//     firstMove = cooperate;
-// }
+void NPavlov::onDefect()
+{
+}
+*/
 
-// void PavLov::onCooperate()
-// {
-//     return; // no change
-// }
+/*
+AdaptivePavlov::AdaptivePavlov()
+{
+    name = "Adaptive Pavlov";
+    firstMove = cooperate;
+}
 
-// void PavLov::onDefect()
-// {
-//     if (nextMove == cooperate)
-//         nextMove = defect;
-//     else
-//         nextMove = cooperate;
-// }
+void AdaptivePavlov::onCooperate()
+{
+}
+
+void AdaptivePavlov::onDefect()
+{
+}
+*/
+
+/*
+Reactive::Reactive()
+{
+    name = "Reactive";
+    firstMove = cooperate;
+}
+
+void Reactive::onCooperate()
+{
+}
+
+void Reactive::onDefect()
+{
+}
+
+MemoryOne::MemoryOne()
+{
+    name = "Memory-one";
+    firstMove = cooperate;
+}
+
+void MemoryOne::onCooperate()
+{
+}
+
+void MemoryOne::onDefect()
+{
+}
+
+ZeroDeterminant::ZeroDeterminant()
+{
+    name = "Zero Determinant";
+    firstMove = cooperate;
+}
+
+void ZeroDeterminant::onCooperate()
+{
+}
+
+void ZeroDeterminant::onDefect()
+{
+}
+
+Equalizer::Equalizer()
+{
+    name = "Equalizer";
+    firstMove = cooperate;
+}
+
+void Equalizer::onCooperate()
+{
+}
+
+void Equalizer::onDefect()
+{
+}
+
+Extortionary::Extortionary()
+{
+    name = "Extortionary";
+    firstMove = cooperate;
+}
+
+void Extortionary::onCooperate()
+{
+}
+
+void Equalizer::onDefect()
+{
+}
+
+Generous::Generous()
+{
+    name = "Generous";
+    firstMove = cooperate;
+}
+
+void Generous::onCooperate()
+{
+}
+
+void Generous::onDefect()
+{
+}
+
+Generous::Equalizer()
+{
+    name = "Generous";
+    firstMove = cooperate;
+}
+
+void Generous::onCooperate()
+{
+}
+
+void Generous::onDefect()
+{
+}
+
+*/

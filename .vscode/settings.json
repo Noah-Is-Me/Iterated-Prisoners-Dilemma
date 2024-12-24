@@ -58,6 +58,12 @@
         "random": "cpp",
         "algorithm": "cpp",
         "optional": "cpp",
-        "array": "cpp"
+        "array": "cpp",
+        "hash_map": "cpp",
+        "chrono": "cpp",
+        "forward_list": "cpp",
+        "iomanip": "cpp",
+        "ratio": "cpp",
+        "sstream": "cpp"
     },
 }

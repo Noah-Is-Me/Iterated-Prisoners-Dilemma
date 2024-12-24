@@ -1,5 +1,6 @@
 #include "helper.h"
 #include <random>
+#include <algorithm>
 
 double randomDouble(double min, double max)
 {
