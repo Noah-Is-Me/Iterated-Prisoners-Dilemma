@@ -148,6 +148,8 @@ int main()
         }
     }
 
+    std::string fullData = "";
+
     for (StrategyData s : strategies)
     {
         std::string data = s.name + ",";
@@ -156,8 +158,11 @@ int main()
             data += std::to_string(failRates[i]) + "," + std::to_string(s.averagePoints[i]) + ",";
         }
 
+        fullData += data + "\n";
         std::cout << data << std::endl;
     }
+
+    // std::cout << fullData << std::endl;
 
     auto totalEnd = std::chrono::high_resolution_clock::now();
     // Calculate the duration in milliseconds, microseconds, or seconds
