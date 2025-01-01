@@ -7,14 +7,12 @@ int randomInt(int min, int max);
 
 bool randomChance(double probability);
 
-enum Move
-{
+const enum Move {
     cooperate,
     defect
 };
 
-enum PointValues
-{
+const enum PointValues {
     cop_cop = 3,
     cop_def = 0,
     def_cop = 5,

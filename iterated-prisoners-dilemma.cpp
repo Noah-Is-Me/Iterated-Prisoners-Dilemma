@@ -15,13 +15,13 @@ Move getFail(Move move, double failRate)
     return move;
 }
 
-void runIteration(Strategy &s1, Strategy &s2, double failRate)
+void runIteration(Strategy &s1, Strategy &s2, double miscommunicationRate, double misexecutionRate)
 {
-    Move s1Move = getFail(s1.nextMove, failRate);
-    Move s2Move = getFail(s2.nextMove, failRate);
+    Move s1Move = getFail(s1.nextMove, misexecutionRate);
+    Move s2Move = getFail(s2.nextMove, misexecutionRate);
 
-    s1.onMove(s2Move);
-    s2.onMove(s1Move);
+    s1.onMove(getFail(s2Move, miscommunicationRate));
+    s2.onMove(getFail(s1Move, miscommunicationRate));
 
     s1.points += pointMatrix[s1Move][s2Move];
     s2.points += pointMatrix[s2Move][s1Move];
@@ -34,15 +34,21 @@ int main()
 {
     auto totalStart = std::chrono::high_resolution_clock::now();
 
-    double failRate = 0.00;
-    const double failRateIncrement = 0.01;
-    const int totalRounds = 100;
+    const double startingMiscommunicationRate = 0.00;
+    const double startingMisexecutionRate = 0.00;
+
+    const double miscommunicationRateIncrement = 0.01;
+    const double misexecutionRateIncrement = 0.01;
+
+    const int totalRounds = 100 + 1;
     const int iterationCount = 1000;
 
-    std::array<double, totalRounds> failRates;
+    std::array<double, totalRounds> miscommunicationRates;
+    std::array<double, totalRounds> misexecutionRates;
     for (int i = 0; i < totalRounds; i++)
     {
-        failRates[i] = failRate + failRateIncrement * i;
+        miscommunicationRates[i] = startingMiscommunicationRate + miscommunicationRateIncrement * i;
+        misexecutionRates[i] = startingMisexecutionRate + misexecutionRateIncrement * i;
     }
 
     std::array<std::function<std::unique_ptr<Strategy>()>, 15> strategyConstructors = {
@@ -113,9 +119,9 @@ int main()
                 s1.reset();
                 s2.reset();
 
-                for (int u = 0; u < iterationCount; u++)
+                for (int k = 0; k < iterationCount; k++)
                 {
-                    runIteration(s1, s2, failRate);
+                    runIteration(s1, s2, miscommunicationRates[u], misexecutionRates[u]);
                 }
 
                 sd1.totalPoints[u] += s1.points;
@@ -126,8 +132,6 @@ int main()
                 //           << std::endl;
             }
         }
-
-        failRate += failRateIncrement;
 
         auto roundEnd = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> roundDuration = roundEnd - roundStart;
@@ -155,7 +159,8 @@ int main()
         std::string data = s.name + ",";
         for (int i = 0; i < totalRounds; i++)
         {
-            data += std::to_string(failRates[i]) + "," + std::to_string(s.averagePoints[i]) + ",";
+            data += std::to_string(miscommunicationRates[i]) + "," + std::to_string(misexecutionRates[i]) + "," + std::to_string(s.averagePoints[i]) + ",";
+            // TODO: Figure out how to pass both miscommunication and misexecution.
         }
 
         fullData += data + "\n";
