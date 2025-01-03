@@ -33,6 +33,8 @@ int main()
     const int cores = std::thread::hardware_concurrency();
     const int maxThreads = cores;
 
+    const bool useParallelProcessing = false;
+
     auto totalStart = std::chrono::high_resolution_clock::now();
 
     const double startingMiscommunicationRate = 0.00;
@@ -108,45 +110,71 @@ int main()
         {
             for (int j = i; j < strategies.size(); j++)
             {
-                if (threads.size() >= maxThreads)
+
+                if (useParallelProcessing)
                 {
-                    for (auto &t : threads)
+                    if (threads.size() >= maxThreads)
                     {
-                        t.join();
-                    }
-                    threads.clear();
-                }
-
-                threads.push_back(std::thread(
-                    [i, j, &strategies, miscommunicationRates, misexecutionRates, u, iterationCount]()
-                    {
-                        StrategyData &sd1 = strategies[i];
-                        StrategyData &sd2 = strategies[j];
-
-                        std::unique_ptr<Strategy> s1_ = sd1.constructor();
-                        std::unique_ptr<Strategy> s2_ = sd2.constructor();
-
-                        Strategy &s1 = *s1_;
-                        Strategy &s2 = *s2_;
-
-                        s1.reset();
-                        s2.reset();
-
-                        for (int k = 0; k < iterationCount; k++)
+                        for (auto &t : threads)
                         {
-                            runIteration(s1, s2, miscommunicationRates[u], misexecutionRates[u]);
+                            t.join();
                         }
+                        threads.clear();
+                    }
 
-                        sd1.totalPoints[u] += s1.points;
-                        sd2.totalPoints[u] += s2.points;
-                    }));
+                    threads.push_back(std::thread(
+                        [i, j, &strategies, miscommunicationRates, misexecutionRates, u, iterationCount]()
+                        {
+                            StrategyData &sd1 = strategies[i];
+                            StrategyData &sd2 = strategies[j];
+
+                            std::unique_ptr<Strategy> s1_ = sd1.constructor();
+                            std::unique_ptr<Strategy> s2_ = sd2.constructor();
+
+                            Strategy &s1 = *s1_;
+                            Strategy &s2 = *s2_;
+
+                            s1.reset();
+                            s2.reset();
+
+                            for (int k = 0; k < iterationCount; k++)
+                            {
+                                runIteration(s1, s2, miscommunicationRates[u], misexecutionRates[u]);
+                            }
+
+                            sd1.totalPoints[u] += s1.points;
+                            sd2.totalPoints[u] += s2.points;
+                        }));
+                }
+                else
+                {
+                    StrategyData &sd1 = strategies[i];
+                    StrategyData &sd2 = strategies[j];
+
+                    std::unique_ptr<Strategy> s1_ = sd1.constructor();
+                    std::unique_ptr<Strategy> s2_ = sd2.constructor();
+
+                    Strategy &s1 = *s1_;
+                    Strategy &s2 = *s2_;
+
+                    s1.reset();
+                    s2.reset();
+
+                    for (int k = 0; k < iterationCount; k++)
+                    {
+                        runIteration(s1, s2, miscommunicationRates[u], misexecutionRates[u]);
+                    }
+
+                    sd1.totalPoints[u] += s1.points;
+                    sd2.totalPoints[u] += s2.points;
+                }
             }
         }
 
-        for (auto &t : threads)
-        {
-            t.join();
-        }
+        // for (auto &t : threads)
+        // {
+        //     t.join();
+        // }
 
         auto roundEnd = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> roundDuration = roundEnd - roundStart;
