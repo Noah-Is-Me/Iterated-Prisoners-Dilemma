@@ -1,30 +1,44 @@
 #include "helper.h"
 #include <random>
-#include <algorithm>
+#include <stdio.h>
+#include <iostream>
 
-double randomDouble(double min, double max)
+static thread_local std::mt19937 gen(std::random_device{}());
+static thread_local std::uniform_real_distribution<> dis(0.0, 1.0);
+
+/* double randomDouble(double min, double max)
 {
-    std::random_device rd;  // Obtain a random seed from the hardware
-    std::mt19937 gen(rd()); // Mersenne Twister engine seeded with rd()
-    std::uniform_real_distribution<> dis(min, max);
-
-    return dis(gen);
+    static thread_local std::mt19937 gen(std::random_device{}());
+    static thread_local std::uniform_real_distribution<> dis(0.0, 1.0);
+    return dis(gen) * (max - min) + min;
 }
-
-int randomInt(int min, int max)
-{
-    std::random_device rd;  // Obtain a random seed from the hardware
-    std::mt19937 gen(rd()); // Mersenne Twister engine seeded with rd()
-    std::uniform_int_distribution<> dis(min, max);
-
-    return dis(gen);
-}
+*/
 
 bool randomChance(double probability)
 {
-    return randomDouble(0.0, 1.0) < probability;
+    return dis(gen) < probability;
 }
 
 const int pointMatrix[2][2] = {
     {cop_cop, cop_def},
     {def_cop, def_def}};
+
+Move getFail(Move move, double failRate)
+{
+    double probChange = failRate * 0.5;
+    if (dis(gen) < probChange)
+    {
+        return (move == cooperate) ? defect : cooperate;
+    }
+    return move;
+}
+
+/* Move getFail(Move move, double failRate)
+{
+    if (randomChance(failRate))
+    {
+        return randomChance(0.5) ? cooperate : defect;
+    }
+    return move;
+}
+*/

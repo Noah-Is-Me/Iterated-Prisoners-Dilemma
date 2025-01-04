@@ -7,15 +7,6 @@
 
 #include "strategy.h"
 
-Move getFail(Move move, double failRate)
-{
-    if (randomChance(failRate))
-    {
-        return randomChance(0.5) ? cooperate : defect;
-    }
-    return move;
-}
-
 void runIteration(Strategy &s1, Strategy &s2, double miscommunicationRate, double misexecutionRate)
 {
     Move s1Move = getFail(s1.nextMove, misexecutionRate);
@@ -28,22 +19,100 @@ void runIteration(Strategy &s1, Strategy &s2, double miscommunicationRate, doubl
     s2.points += pointMatrix[s2Move][s1Move];
 }
 
+template <std::size_t N1, std::size_t N2>
+void runMatchup(int u, int i, int j, std::array<StrategyData, N1> &strategies, int iterationCount, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates)
+{
+    StrategyData &sd1 = strategies[i];
+    StrategyData &sd2 = strategies[j];
+
+    std::unique_ptr<Strategy> s1_ = sd1.constructor();
+    std::unique_ptr<Strategy> s2_ = sd2.constructor();
+
+    Strategy &s1 = *s1_;
+    Strategy &s2 = *s2_;
+
+    s1.reset();
+    s2.reset();
+
+    for (int k = 0; k < iterationCount; k++)
+    {
+        runIteration(s1, s2, miscommunicationRates[u], misexecutionRates[u]);
+    }
+
+    sd1.totalPoints[u] += s1.points;
+    sd2.totalPoints[u] += s2.points;
+}
+
+void joinThreads(std::vector<std::thread> &threads)
+{
+    for (std::thread &t : threads)
+    {
+        t.join();
+    }
+    threads.clear();
+}
+
+template <std::size_t N1, std::size_t N2>
+void runRound(int u, std::array<StrategyData, N1> &strategies, int iterationCount, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates, int parallelProcessMatchups, int giveRoundUpdates, int totalRounds, int maxMatchupThreads)
+{
+    auto roundStart = std::chrono::high_resolution_clock::now();
+
+    std::vector<std::thread> threads;
+
+    for (int i = 0; i < strategies.size(); i++)
+    {
+        for (int j = i; j < strategies.size(); j++)
+        {
+            if (parallelProcessMatchups)
+            {
+                if (threads.size() >= maxMatchupThreads)
+                {
+                    joinThreads(threads);
+                }
+
+                threads.push_back(std::thread(runMatchup<N1, N2>, u, i, j, std::ref(strategies), iterationCount, std::cref(miscommunicationRates), std::cref(misexecutionRates)));
+            }
+            else
+            {
+                runMatchup(u, i, j, strategies, iterationCount, miscommunicationRates, misexecutionRates);
+            }
+        }
+    }
+
+    if (parallelProcessMatchups)
+        joinThreads(threads);
+
+    if (giveRoundUpdates && u % 5 == 0)
+    {
+        auto roundEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> roundDuration = roundEnd - roundStart;
+        double estimatedTime = roundDuration.count() * (totalRounds - (u + 1));
+        std::cout << "[NOTICE] Round " << u << " complete, Time: " << roundDuration.count() << " seconds\n"
+                  << "[NOTICE] Estimated time: " << estimatedTime << " seconds  (" << estimatedTime / 60 << " minutes)" << std::endl;
+    }
+}
+
 int main()
 {
-    const int cores = std::thread::hardware_concurrency();
-    const int maxThreads = cores;
-
-    const bool useParallelProcessing = false;
-
     auto totalStart = std::chrono::high_resolution_clock::now();
+
+    const int cores = std::thread::hardware_concurrency();
+
+    const int maxRoundThreads = cores;
+    const int maxMatchupThreads = cores;
+
+    const bool parallelProcessRounds = true;
+    const bool parallelProcessMatchups = false;
+
+    const bool giveRoundUpdates = false;
 
     const double startingMiscommunicationRate = 0.00;
     const double startingMisexecutionRate = 0.00;
 
     const double miscommunicationRateIncrement = 0.01;
-    const double misexecutionRateIncrement = 0.01;
+    const double misexecutionRateIncrement = 0.0;
 
-    const int totalRounds = 100;
+    const int totalRounds = 100 + 1;
     const int iterationCount = 1000;
 
     std::array<double, totalRounds> miscommunicationRates;
@@ -100,88 +169,28 @@ int main()
         strategies[i].constructor = strategyConstructors[i];
     }
 
+    std::vector<std::thread> threads;
+
     for (int u = 0; u < totalRounds; u++)
     {
-        auto roundStart = std::chrono::high_resolution_clock::now();
-
-        std::vector<std::thread> threads;
-
-        for (int i = 0; i < strategies.size(); i++)
+        if (parallelProcessRounds)
         {
-            for (int j = i; j < strategies.size(); j++)
+            if (threads.size() >= maxRoundThreads)
             {
-
-                if (useParallelProcessing)
-                {
-                    if (threads.size() >= maxThreads)
-                    {
-                        for (auto &t : threads)
-                        {
-                            t.join();
-                        }
-                        threads.clear();
-                    }
-
-                    threads.push_back(std::thread(
-                        [i, j, &strategies, miscommunicationRates, misexecutionRates, u, iterationCount]()
-                        {
-                            StrategyData &sd1 = strategies[i];
-                            StrategyData &sd2 = strategies[j];
-
-                            std::unique_ptr<Strategy> s1_ = sd1.constructor();
-                            std::unique_ptr<Strategy> s2_ = sd2.constructor();
-
-                            Strategy &s1 = *s1_;
-                            Strategy &s2 = *s2_;
-
-                            s1.reset();
-                            s2.reset();
-
-                            for (int k = 0; k < iterationCount; k++)
-                            {
-                                runIteration(s1, s2, miscommunicationRates[u], misexecutionRates[u]);
-                            }
-
-                            sd1.totalPoints[u] += s1.points;
-                            sd2.totalPoints[u] += s2.points;
-                        }));
-                }
-                else
-                {
-                    StrategyData &sd1 = strategies[i];
-                    StrategyData &sd2 = strategies[j];
-
-                    std::unique_ptr<Strategy> s1_ = sd1.constructor();
-                    std::unique_ptr<Strategy> s2_ = sd2.constructor();
-
-                    Strategy &s1 = *s1_;
-                    Strategy &s2 = *s2_;
-
-                    s1.reset();
-                    s2.reset();
-
-                    for (int k = 0; k < iterationCount; k++)
-                    {
-                        runIteration(s1, s2, miscommunicationRates[u], misexecutionRates[u]);
-                    }
-
-                    sd1.totalPoints[u] += s1.points;
-                    sd2.totalPoints[u] += s2.points;
-                }
+                joinThreads(threads);
             }
+
+            threads.push_back(std::thread(
+                runRound<strategies.size(), totalRounds>, u, std::ref(strategies), iterationCount, std::cref(miscommunicationRates), std::cref(misexecutionRates), parallelProcessMatchups, giveRoundUpdates, totalRounds, maxMatchupThreads));
         }
-
-        // for (auto &t : threads)
-        // {
-        //     t.join();
-        // }
-
-        auto roundEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> roundDuration = roundEnd - roundStart;
-        double estimatedTime = roundDuration.count() * (totalRounds - (u + 1));
-        std::cout << "[NOTICE] Round " << u << " complete, Time: " << roundDuration.count() << " seconds\n"
-                  << "[NOTICE] Estimated time: " << estimatedTime << " seconds  (" << estimatedTime / 60 << " minutes)" << std::endl;
+        else
+        {
+            runRound(u, strategies, iterationCount, miscommunicationRates, misexecutionRates, parallelProcessMatchups, giveRoundUpdates, totalRounds, maxMatchupThreads);
+        }
     }
+
+    if (parallelProcessRounds)
+        joinThreads(threads);
 
     for (int i = 0; i < strategyConstructors.size(); i++)
     {
@@ -210,6 +219,7 @@ int main()
     auto totalEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalDuration = totalEnd - totalStart;
     std::cout << "[NOTICE] Total time taken: " << totalDuration.count() << " seconds" << std::endl;
+    std::cout << "[NOTICE] Average round time: " << totalDuration.count() / totalRounds << " seconds" << std::endl;
 
     return 0;
 }

@@ -27,8 +27,8 @@ cppFile = "iterated-prisoners-dilemma.cpp"
 linkageFiles = ["helper.cpp", "strategy.cpp"]
 exeFile = "iterated-prisoners-dilemma.exe"
 
-#gppPath = r"C:\msys64\ucrt64\bin\g++.exe"
-gppPath = r"/usr/bin/g++"
+gppPath = r"C:\msys64\ucrt64\bin\g++.exe"
+# gppPath = r"/usr/bin/g++"
 buildCommand = [gppPath, "-fdiagnostics-color=always", "-g", cppFile, *linkageFiles, "-o", exeFile]
 
 if not os.path.exists(gppPath):
@@ -37,16 +37,28 @@ if not os.path.exists(gppPath):
 
 # Function to check if rebuild is necessary
 def needsRebuild(cppFile, exeFile):
-    # Check if the executable exists
     if not os.path.exists(exeFile):
         return True
 
-    # Get the modification time of the C++ file and the executable
     cppModTime = os.path.getmtime(cppFile)
     exeModTime = os.path.getmtime(exeFile)
 
-    # If the C++ file is newer, rebuild the executable
-    return cppModTime > exeModTime
+    if cppModTime > exeModTime:
+        return True
+
+    for linkageFile in linkageFiles:
+        if os.path.exists(linkageFile):
+            linkageModTime = os.path.getmtime(linkageFile)
+            if linkageModTime > exeModTime:
+                return True
+            
+            headerFile = os.path.splitext(linkageFile)[0] + ".h"
+            if os.path.exists(headerFile):
+                headerModTime = os.path.getmtime(headerFile)
+                if headerModTime > exeModTime:
+                    return True
+
+    return False
 
 if needsRebuild(cppFile, exeFile):
     try:
@@ -61,6 +73,40 @@ if needsRebuild(cppFile, exeFile):
 else:
     print("No changes detected, skipping build.")
 
+
+process = subprocess.Popen(
+    [os.path.join(os.getcwd(), exeFile)],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True,  # Ensures the output is already decoded as text
+    bufsize=1,  # Line-buffered output
+)
+
+allData = []
+
+for line in iter(process.stdout.readline, ""):
+    line = line.strip()
+    if not line:  # Skip empty lines
+        continue
+
+    if "[NOTICE]" in line:
+        print(line)
+        continue
+
+    # print(line)
+    values = list(filter(lambda x: x.strip(), line.split(",")))
+    name = values[0].strip()
+
+    miscomValues = [float(values[i].strip()) for i in range(1, len(values), 3)]
+    misexValues = [float(values[i].strip()) for i in range(2, len(values), 3)]
+    yValues = [float(values[i].strip()) for i in range(3, len(values), 3)]
+
+    allData.append((name, miscomValues, misexValues, yValues))
+
+
+
+process.stdout.close()
+process.wait()
 
 
 workspaceDir = "Graphs"
@@ -83,40 +129,9 @@ os.makedirs(outputDir, exist_ok=True)
 figureWidth = 6.40 * 2
 figureHeight = 4.80 * 1.5
 
-
-process = subprocess.Popen(
-    [os.path.join(os.getcwd(), exeFile)],
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    text=True,  # Ensures the output is already decoded as text
-    bufsize=1,  # Line-buffered output
-)
-
-allData = []
-
-for line in iter(process.stdout.readline, ""):
-    line = line.strip()
-    if not line:  # Skip empty lines
-        continue
-
-    if "[NOTICE]" in line:
-        print(line)
-        continue
-
-    print(line)
-    values = list(filter(lambda x: x.strip(), line.split(",")))
-    name = values[0].strip()
-
-    miscomValues = [float(values[i].strip()) for i in range(1, len(values), 3)]
-    misexValues = [float(values[i].strip()) for i in range(2, len(values), 3)]
-    yValues = [float(values[i].strip()) for i in range(3, len(values), 3)]
-
-    allData.append((name, miscomValues, misexValues, yValues))
-
-
-
-process.stdout.close()
-process.wait()
+aggregateGraphMarker = "."
+singleGraphMarker = "o"
+# markers:  , . o x X none "" 
 
 
 def createSingleGraph(data, miscommunicationRange, misexecutionRange, constMiscom, constMisex):
@@ -132,7 +147,7 @@ def createSingleGraph(data, miscommunicationRange, misexecutionRange, constMisco
     ax1.grid(True)
 
     if (not constMiscom):
-        ax1.plot(miscomValues, yValues, marker="o", label="Data points")
+        ax1.plot(miscomValues, yValues, marker=singleGraphMarker, label="Data points")
         ax1.set_xlabel("Miscommunication Rate")
         ax1.set_xlim(miscommunicationRange[0], miscommunicationRange[1])
 
@@ -147,7 +162,7 @@ def createSingleGraph(data, miscommunicationRange, misexecutionRange, constMisco
             ax1.set_title(name + " Average Points vs Miscommunication Rate at Misexecution Rate = " + str(misexecutionRange[0]), pad=20)
         
     else:
-        ax1.plot(misexValues, yValues, marker="o", label="Data points")
+        ax1.plot(misexValues, yValues, marker=singleGraphMarker, label="Data points")
         ax1.set_xlabel("Misexecution Rate")
         ax1.set_xlim(misexecutionRange[0], misexecutionRange[1])
         ax1.set_title(name + " Average Points vs Misexecution Rate at Miscommunication Rate = " + str(miscommunicationRange[0]), pad=20)
@@ -174,7 +189,7 @@ def createAggregateGraph(data, miscommunicationRange, misexecutionRange, constMi
         for i, (name, miscomValues, misexValues, yValues) in enumerate(data):
             if i%numColors == 0:
                 lineStyle=next(lineStyleCycle)
-            ax1.plot(miscomValues, yValues, marker=".", label=name, linestyle=lineStyle)
+            ax1.plot(miscomValues, yValues, marker=aggregateGraphMarker, label=name, linestyle=lineStyle)
         ax1.set_xlabel("Miscommunication Rate")
         ax1.set_xlim(miscommunicationRange[0], miscommunicationRange[1])
 
@@ -192,7 +207,7 @@ def createAggregateGraph(data, miscommunicationRange, misexecutionRange, constMi
         for i, (name, miscomValues, misexValues, yValues) in enumerate(data):
             if i%numColors == 0:
                 lineStyle=next(lineStyleCycle)
-            ax1.plot(misexValues, yValues, marker=".", label=name, linestyle=lineStyle)
+            ax1.plot(misexValues, yValues, marker=aggregateGraphMarker, label=name, linestyle=lineStyle)
         ax1.set_xlabel("Misexecution Rate")
         ax1.set_xlim(misexecutionRange[0], misexecutionRange[1])
         ax1.set_title("All Strategies Average Points vs Misexecution Rate at Miscommunication Rate = " + str(miscommunicationRange[0]), pad=20)

@@ -1,9 +1,9 @@
 #ifndef HELPER_H
 #define HELPER_H
 
-double randomDouble(double min, double max);
+// double randomDouble(double min, double max);
 
-int randomInt(int min, int max);
+// int randomInt(int min, int max);
 
 bool randomChance(double probability);
 
@@ -22,5 +22,7 @@ enum PointValues
 };
 
 extern const int pointMatrix[2][2];
+
+Move getFail(Move move, double failRate);
 
 #endif
