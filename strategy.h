@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <mutex>
 
 #include "helper.h"
 
@@ -16,15 +17,34 @@ public:
     Move nextMove;
     int points;
 
+    std::vector<int> totalPoints;
+    std::vector<double> averagePoints;
+    std::mutex mtx;
+
     void onMove(Move move);
 
     void reset();
 
     virtual ~Strategy();
 
+    void addPoints(int index, int value)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        totalPoints[index] += value;
+    }
+
 private:
     virtual void onCooperate() = 0;
     virtual void onDefect() = 0;
+};
+
+struct iterationResults
+{
+public:
+    Move s1Move;
+    Move s2Move;
+    int s1Points;
+    int s2Points;
 };
 
 class StrategyData
@@ -34,6 +54,18 @@ public:
     std::vector<int> totalPoints;
     std::vector<double> averagePoints;
     std::function<std::unique_ptr<Strategy>()> constructor;
+    std::mutex mtx;
+
+    // StrategyData() = default;
+
+    // StrategyData(int rounds)
+    //     : totalPoints(rounds), averagePoints(rounds, 0.0) {}
+
+    void addPoints(int index, int value)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        totalPoints[index] += value;
+    }
 };
 
 class TitForTat : public Strategy
