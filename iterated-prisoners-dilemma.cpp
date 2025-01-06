@@ -159,6 +159,19 @@ void outputData(const std::array<StrategyData, N1> &strategies, const std::array
     }
 }
 
+template <typename T>
+std::unique_ptr<Strategy> makeConstructor()
+{
+    return std::make_unique<T>();
+}
+
+template <typename... Types>
+std::array<std::function<std::unique_ptr<Strategy>()>, sizeof...(Types)> makeConstructors()
+{
+    return std::array<std::function<std::unique_ptr<Strategy>()>, sizeof...(Types)>{
+        &makeConstructor<Types>...};
+}
+
 int main()
 {
     auto totalStart = std::chrono::high_resolution_clock::now();
@@ -177,10 +190,10 @@ int main()
     const double startingMisexecutionRate = 0.00;
 
     const double miscommunicationRateIncrement = 0.01;
-    const double misexecutionRateIncrement = 0.01;
+    const double misexecutionRateIncrement = 0.00;
 
     const int totalRounds = 100 + 1;
-    const int iterationCount = 1000;
+    const int iterationCount = 10000;
 
     std::array<double, totalRounds> miscommunicationRates;
     std::array<double, totalRounds> misexecutionRates;
@@ -190,44 +203,71 @@ int main()
         misexecutionRates[i] = startingMisexecutionRate + misexecutionRateIncrement * i;
     }
 
-    std::array<std::function<std::unique_ptr<Strategy>()>, 15> strategyConstructors = {
-        []()
-        { return std::make_unique<TitForTat>(); },
-        []()
-        { return std::make_unique<ForgivingTitForTat>(); },
-        []()
-        { return std::make_unique<AlwaysDefect>(); },
-        []()
-        { return std::make_unique<AlwaysCooperate>(); },
-        []()
-        { return std::make_unique<Random>(); },
-        []()
-        { return std::make_unique<ProbabilityCooperator>(); },
-        []()
-        { return std::make_unique<ProbabilityDefector>(); },
-        []()
-        { return std::make_unique<SuspiciousTitForTat>(); },
-        []()
-        { return std::make_unique<GenerousTitForTat>(); },
-        []()
-        { return std::make_unique<GradualTitForTat>(); },
-        []()
-        { return std::make_unique<ImperfectTitForTat>(); },
-        []()
-        { return std::make_unique<TitForTwoTats>(); },
-        []()
-        { return std::make_unique<TwoTitsForTat>(); },
-        []()
-        { return std::make_unique<GrimTrigger>(); },
-        []()
-        { return std::make_unique<Pavlov>(); },
-    };
+    // All Strategies
+    // auto strategyConstructors = makeConstructors<
+    //     TitForTat,
+    //     ForgivingTitForTat,
+    //     AlwaysDefect,
+    //     AlwaysCooperate,
+    //     Random,
+    //     ProbabilityCooperator,
+    //     ProbabilityDefector,
+    //     SuspiciousTitForTat,
+    //     GenerousTitForTat,
+    //     GradualTitForTat,
+    //     ImperfectTitForTat,
+    //     TitForTwoTats,
+    //     TwoTitsForTat,
+    //     GrimTrigger,
+    //     Pavlov>();
+
+    // TitForTat vs ForgivingTitForTat
+    // auto strategyConstructors = makeConstructors<
+    //     ForgivingTitForTat,
+    //     TitForTat,
+    //     TitForTat,
+    //     TitForTat,
+    //     TitForTat,
+    //     TitForTat,
+    //     TitForTat,
+    //     TitForTat,
+    //     TitForTat,
+    //     TitForTat,
+    //     Random>();
+
+    // Nice Strategies
+    // auto strategyConstructors = makeConstructors<
+    //     AlwaysCooperate,
+    //     ForgivingTitForTat,
+    //     TitForTat,
+    //     ProbabilityCooperator,
+    //     GenerousTitForTat,
+    //     TitForTwoTats,
+    //     Random>();
+
+    // Mean Strategies
+    // auto strategyConstructors = makeConstructors<
+    //     GradualTitForTat,
+    //     GrimTrigger,
+    //     SuspiciousTitForTat,
+    //     ProbabilityDefector,
+    //     TwoTitsForTat,
+    //     Random>();
+
+    // Nice Strategies Infiltration
+    auto strategyConstructors = makeConstructors<
+        AlwaysDefect,
+        AlwaysCooperate,
+        ForgivingTitForTat,
+        TitForTat,
+        ProbabilityCooperator,
+        GenerousTitForTat,
+        TitForTwoTats,
+        Random>();
 
     std::array<StrategyData, strategyConstructors.size()> strategies;
-
-    for (int i = 0; i < strategyConstructors.size(); i++)
+    for (int i = 0; i < strategies.size(); i++)
     {
-        // strategies[i] = StrategyData(totalRounds);
         strategies[i].name = strategyConstructors[i]()->name;
         strategies[i].totalPoints.assign(totalRounds, 0);
         strategies[i].averagePoints.assign(totalRounds, 0);
@@ -261,13 +301,11 @@ int main()
     if (parallelProcessRounds)
         joinThreads(threads);
 
-    for (int i = 0; i < strategyConstructors.size(); i++)
+    for (StrategyData &strategy : strategies)
     {
-        auto &strategy = strategies[i];
-
-        for (int j = 0; j < totalRounds; j++)
+        for (int i = 0; i < totalRounds; i++)
         {
-            strategy.averagePoints[j] = 1.0 * strategy.totalPoints[j] / (strategyConstructors.size() + 1);
+            strategy.averagePoints[i] = 1.0 * strategy.totalPoints[i] / (strategies.size() + 1);
         }
     }
 

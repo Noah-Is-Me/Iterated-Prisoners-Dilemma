@@ -28,15 +28,6 @@ private:
     virtual void onDefect() = 0;
 };
 
-struct iterationResults
-{
-public:
-    Move s1Move;
-    Move s2Move;
-    int s1Points;
-    int s2Points;
-};
-
 class StrategyData
 {
 public:
