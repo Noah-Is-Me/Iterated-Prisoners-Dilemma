@@ -7,87 +7,43 @@
 
 #include "strategy.h"
 
-void runIteration(Strategy &s1, Strategy &s2, double miscommunicationRate, double misexecutionRate)
+void runIteration(matchupData &data, double miscommunicationRate, double misexecutionRate)
 {
-    Move s1Move = getFail(s1.nextMove, misexecutionRate);
-    Move s2Move = getFail(s2.nextMove, misexecutionRate);
+    Move s1Move = getFail(data.s1NextMove, misexecutionRate);
+    Move s2Move = getFail(data.s2NextMove, misexecutionRate);
 
-    s1.onMove(getFail(s2Move, miscommunicationRate));
-    s2.onMove(getFail(s1Move, miscommunicationRate));
+    data.s1Points += pointMatrix[s1Move][s2Move];
+    data.s2Points += pointMatrix[s2Move][s1Move];
 
-    s1.points += pointMatrix[s1Move][s2Move];
-    s2.points += pointMatrix[s2Move][s1Move];
+    data.s1NextMove = data.s1.onMove(getFail(s2Move, miscommunicationRate));
+    data.s2NextMove = data.s2.onMove(getFail(s1Move, miscommunicationRate));
 }
 
 template <std::size_t N1, std::size_t N2>
-void runMatchup(int u, int i, int j, std::array<StrategyData, N1> &strategies, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates, int iterationCount)
+void runMatchup(int u, int i, int j, std::array<std::unique_ptr<Strategy>, N1> &strategies, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates, int iterationCount)
 {
-    StrategyData &sd1 = strategies[i];
-    StrategyData &sd2 = strategies[j];
-
-    std::unique_ptr<Strategy> s1_ = sd1.constructor();
-    std::unique_ptr<Strategy> s2_ = sd2.constructor();
+    std::unique_ptr<Strategy> &s1_ = strategies[i];
+    std::unique_ptr<Strategy> &s2_ = strategies[j];
 
     Strategy &s1 = *s1_;
     Strategy &s2 = *s2_;
 
-    s1.reset();
-    s2.reset();
+    matchupData data = {
+        s1,
+        s2,
+        s1.firstMove,
+        s2.firstMove,
+        0,
+        0,
+    };
 
     for (int k = 0; k < iterationCount; k++)
     {
-        runIteration(s1, s2, miscommunicationRates[u], misexecutionRates[u]);
+        runIteration(data, miscommunicationRates[u], misexecutionRates[u]);
     }
 
-    // sd1.totalPoints[u] += s1.points;
-    // sd2.totalPoints[u] += s2.points;
-
-    sd1.addPoints(u, s1.points);
-    sd2.addPoints(u, s2.points);
-}
-
-iterationResults runIteration2(Strategy &s1, Strategy &s2, Move s1Move, Move s2Move, double miscommunicationRate, double misexecutionRate)
-{
-    s1Move = getFail(s1Move, misexecutionRate);
-    s2Move = getFail(s2Move, misexecutionRate);
-
-    s1.onMove(getFail(s2Move, miscommunicationRate));
-    s2.onMove(getFail(s1Move, miscommunicationRate));
-
-    int s1Points = pointMatrix[s1Move][s2Move];
-    int s2Points = pointMatrix[s2Move][s1Move];
-
-    return {
-        s1Move,
-        s2Move,
-        s1Points,
-        s2Points};
-}
-
-template <std::size_t N1, std::size_t N2>
-void runMatchup2(int u, int i, int j, std::array<Strategy, N1> &strategies, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates, int iterationCount)
-{
-    Strategy &s1 = strategies[i];
-    Strategy &s2 = strategies[j];
-
-    int s1Points = 0;
-    int s2Points = 0;
-
-    Move s1Move = s1.firstMove;
-    Move s2Move = s2.firstMove;
-
-    for (int k = 0; k < iterationCount; k++)
-    {
-        iterationResults results = runIteration(s1, s2, s1Move, s2Move, miscommunicationRates[u], misexecutionRates[u]);
-
-        s1Move = results.s1Move;
-        s2Move = results.s2Move;
-        s1Points += results.s1Points;
-        s2Points += results.s2Points;
-    }
-
-    s1.addPoints(u, s1Points);
-    s2.addPoints(u, s2Points);
+    s1.addPoints(u, data.s1Points);
+    s2.addPoints(u, data.s2Points);
 }
 
 void joinThreads(std::vector<std::thread> &threads)
@@ -100,7 +56,7 @@ void joinThreads(std::vector<std::thread> &threads)
 }
 
 template <std::size_t N1, std::size_t N2>
-void runRound(int u, std::array<StrategyData, N1> &strategies, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates, int iterationCount, int parallelProcessMatchups, int maxMatchupThreads, int giveRoundUpdates)
+void runRound(int u, std::array<std::unique_ptr<Strategy>, N1> &strategies, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates, int iterationCount, int parallelProcessMatchups, int maxMatchupThreads, int giveRoundUpdates)
 {
     auto roundStart = std::chrono::high_resolution_clock::now();
 
@@ -188,16 +144,16 @@ void runThreads(int iterations, int iterator1, int iterator2, bool useParallelPr
 */
 
 template <std::size_t N1, std::size_t N2>
-void outputData(const std::array<StrategyData, N1> &strategies, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates)
+void outputData(const std::array<std::unique_ptr<Strategy>, N1> &strategies, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates)
 {
     std::string fullData = "";
 
-    for (const StrategyData &s : strategies)
+    for (const std::unique_ptr<Strategy> &strategy : strategies)
     {
-        std::string data = s.name + ",";
+        std::string data = strategy->name + ",";
         for (int i = 0; i < N2; i++)
         {
-            data += std::to_string(miscommunicationRates[i]) + "," + std::to_string(misexecutionRates[i]) + "," + std::to_string(s.averagePoints[i]) + ",";
+            data += std::to_string(miscommunicationRates[i]) + "," + std::to_string(misexecutionRates[i]) + "," + std::to_string(strategy->averagePoints[i]) + ",";
         }
 
         fullData += data + "\n";
@@ -236,48 +192,27 @@ int main()
         misexecutionRates[i] = startingMisexecutionRate + misexecutionRateIncrement * i;
     }
 
-    std::array<std::function<std::unique_ptr<Strategy>()>, 15> strategyConstructors = {
-        []()
-        { return std::make_unique<TitForTat>(); },
-        []()
-        { return std::make_unique<ForgivingTitForTat>(); },
-        []()
-        { return std::make_unique<AlwaysDefect>(); },
-        []()
-        { return std::make_unique<AlwaysCooperate>(); },
-        []()
-        { return std::make_unique<Random>(); },
-        []()
-        { return std::make_unique<ProbabilityCooperator>(); },
-        []()
-        { return std::make_unique<ProbabilityDefector>(); },
-        []()
-        { return std::make_unique<SuspiciousTitForTat>(); },
-        []()
-        { return std::make_unique<GenerousTitForTat>(); },
-        []()
-        { return std::make_unique<GradualTitForTat>(); },
-        []()
-        { return std::make_unique<ImperfectTitForTat>(); },
-        []()
-        { return std::make_unique<TitForTwoTats>(); },
-        []()
-        { return std::make_unique<TwoTitsForTat>(); },
-        []()
-        { return std::make_unique<GrimTrigger>(); },
-        []()
-        { return std::make_unique<Pavlov>(); },
-    };
+    std::array<std::unique_ptr<Strategy>, 15> strategies = {
+        std::make_unique<TitForTat>(),
+        std::make_unique<ForgivingTitForTat>(),
+        std::make_unique<AlwaysDefect>(),
+        std::make_unique<AlwaysCooperate>(),
+        std::make_unique<Random>(),
+        std::make_unique<ProbabilityCooperator>(),
+        std::make_unique<ProbabilityDefector>(),
+        std::make_unique<SuspiciousTitForTat>(),
+        std::make_unique<GenerousTitForTat>(),
+        std::make_unique<GradualTitForTat>(),
+        std::make_unique<ImperfectTitForTat>(),
+        std::make_unique<TitForTwoTats>(),
+        std::make_unique<TwoTitsForTat>(),
+        std::make_unique<GrimTrigger>(),
+        std::make_unique<Pavlov>()};
 
-    std::array<StrategyData, strategyConstructors.size()> strategies;
-
-    for (int i = 0; i < strategyConstructors.size(); i++)
+    for (int i = 0; i < strategies.size(); i++)
     {
-        // strategies[i] = StrategyData(totalRounds);
-        strategies[i].name = strategyConstructors[i]()->name;
-        strategies[i].totalPoints.assign(totalRounds, 0);
-        strategies[i].averagePoints.assign(totalRounds, 0);
-        strategies[i].constructor = strategyConstructors[i];
+        strategies[i]->totalPoints.assign(totalRounds, 0);
+        strategies[i]->averagePoints.assign(totalRounds, 0);
     }
 
     /* runThreads(totalRounds, parallelProcessRounds, maxRoundThreads, runRound<strategies.size(), totalRounds>,
@@ -307,13 +242,11 @@ int main()
     if (parallelProcessRounds)
         joinThreads(threads);
 
-    for (int i = 0; i < strategyConstructors.size(); i++)
+    for (std::unique_ptr<Strategy> &strategy : strategies)
     {
-        auto &strategy = strategies[i];
-
-        for (int j = 0; j < totalRounds; j++)
+        for (int i = 0; i < totalRounds; i++)
         {
-            strategy.averagePoints[j] = 1.0 * strategy.totalPoints[j] / (strategyConstructors.size() + 1);
+            strategy->averagePoints[i] = 1.0 * strategy->totalPoints[i] / (strategies.size() + 1);
         }
     }
 

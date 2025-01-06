@@ -14,16 +14,12 @@ class Strategy
 public:
     std::string name;
     Move firstMove;
-    Move nextMove;
-    int points;
 
     std::vector<int> totalPoints;
     std::vector<double> averagePoints;
     std::mutex mtx;
 
-    void onMove(Move move);
-
-    void reset();
+    Move onMove(Move move) const;
 
     virtual ~Strategy();
 
@@ -34,38 +30,20 @@ public:
     }
 
 private:
-    virtual void onCooperate() = 0;
-    virtual void onDefect() = 0;
+    virtual Move onCooperate() const = 0;
+    virtual Move onDefect() const = 0;
 };
 
-struct iterationResults
+struct matchupData
 {
-public:
-    Move s1Move;
-    Move s2Move;
+    const Strategy &s1;
+    const Strategy &s2;
+    Move s1NextMove;
+    Move s2NextMove;
     int s1Points;
     int s2Points;
-};
-
-class StrategyData
-{
-public:
-    std::string name;
-    std::vector<int> totalPoints;
-    std::vector<double> averagePoints;
-    std::function<std::unique_ptr<Strategy>()> constructor;
-    std::mutex mtx;
-
-    // StrategyData() = default;
-
-    // StrategyData(int rounds)
-    //     : totalPoints(rounds), averagePoints(rounds, 0.0) {}
-
-    void addPoints(int index, int value)
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        totalPoints[index] += value;
-    }
+    std::vector<int> s1Arguments;
+    std::vector<int> s2Arguments;
 };
 
 class TitForTat : public Strategy
@@ -73,9 +51,9 @@ class TitForTat : public Strategy
 public:
     TitForTat();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class ForgivingTitForTat : public Strategy
@@ -83,9 +61,9 @@ class ForgivingTitForTat : public Strategy
 public:
     ForgivingTitForTat();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class AlwaysDefect : public Strategy
@@ -93,9 +71,9 @@ class AlwaysDefect : public Strategy
 public:
     AlwaysDefect();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class AlwaysCooperate : public Strategy
@@ -103,9 +81,9 @@ class AlwaysCooperate : public Strategy
 public:
     AlwaysCooperate();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class Random : public Strategy
@@ -113,9 +91,9 @@ class Random : public Strategy
 public:
     Random();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class ProbabilityCooperator : public Strategy
@@ -123,9 +101,9 @@ class ProbabilityCooperator : public Strategy
 public:
     ProbabilityCooperator();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class ProbabilityDefector : public Strategy
@@ -133,9 +111,9 @@ class ProbabilityDefector : public Strategy
 public:
     ProbabilityDefector();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class SuspiciousTitForTat : public Strategy
@@ -143,9 +121,9 @@ class SuspiciousTitForTat : public Strategy
 public:
     SuspiciousTitForTat();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class GenerousTitForTat : public Strategy
@@ -153,9 +131,9 @@ class GenerousTitForTat : public Strategy
 public:
     GenerousTitForTat();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class GradualTitForTat : public Strategy
@@ -165,9 +143,9 @@ public:
     int continueDefecting;
     int highestDefectStreak;
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class ImperfectTitForTat : public Strategy
@@ -175,9 +153,9 @@ class ImperfectTitForTat : public Strategy
 public:
     ImperfectTitForTat();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class TitForTwoTats : public Strategy
@@ -186,9 +164,9 @@ public:
     TitForTwoTats();
     int consecutiveDefectCount;
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class TwoTitsForTat : public Strategy
@@ -197,9 +175,9 @@ public:
     TwoTitsForTat();
     bool defectAgain;
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 /*
@@ -208,9 +186,9 @@ class OmegaTitForTat : public Strategy
 public:
     OmegaTitForTat();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 */
 
@@ -220,19 +198,20 @@ public:
     GrimTrigger();
     bool triggered;
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class Pavlov : public Strategy
 {
 public:
     Pavlov();
+    Move previousMove;
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 /*
@@ -241,9 +220,9 @@ class NPavlov : public Strategy
 public:
     NPavlov();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 */
 
@@ -253,9 +232,9 @@ class AdaptivePavlov : public Strategy
 public:
     AdaptivePavlov();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 */
 
@@ -265,9 +244,9 @@ class Reactive : public Strategy
 public:
     Reactive();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class MemoryOne : public Strategy
@@ -275,9 +254,9 @@ class MemoryOne : public Strategy
 public:
     MemoryOne();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class ZeroDeterminant : public Strategy
@@ -285,9 +264,9 @@ class ZeroDeterminant : public Strategy
 public:
     ZeroDeterminant();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class Equalizer : public Strategy
@@ -295,9 +274,9 @@ class Equalizer : public Strategy
 public:
     Equalizer();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class Extortionary : public Strategy
@@ -305,9 +284,9 @@ class Extortionary : public Strategy
 public:
     Extortionary();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class Generous : public Strategy
@@ -315,9 +294,9 @@ class Generous : public Strategy
 public:
     Generous();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 
 class Generous : public Strategy
@@ -325,9 +304,9 @@ class Generous : public Strategy
 public:
     Good();
 
-    void onCooperate() override;
+    Move onCooperate() const override;
 
-    void onDefect() override;
+    Move onDefect() const override;
 };
 */
 
