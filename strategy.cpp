@@ -1,9 +1,15 @@
 #include "strategy.h"
 #include "helper.h"
 
-Move Strategy::onMove(Move move) const
+void Strategy::onMove(Move move)
 {
-    return move == cooperate ? onCooperate() : onDefect();
+    move == cooperate ? onCooperate() : onDefect();
+}
+
+void Strategy::reset()
+{
+    nextMove = firstMove;
+    points = 0;
 }
 
 Strategy::~Strategy() = default;
@@ -14,14 +20,14 @@ TitForTat::TitForTat()
     firstMove = cooperate;
 }
 
-Move TitForTat::onCooperate() const
+void TitForTat::onCooperate()
 {
-    return cooperate;
+    nextMove = cooperate;
 }
 
-Move TitForTat::onDefect() const
+void TitForTat::onDefect()
 {
-    return defect;
+    nextMove = defect;
 }
 
 ForgivingTitForTat::ForgivingTitForTat()
@@ -30,17 +36,17 @@ ForgivingTitForTat::ForgivingTitForTat()
     firstMove = cooperate;
 }
 
-Move ForgivingTitForTat::onCooperate() const
+void ForgivingTitForTat::onCooperate()
 {
-    return cooperate;
+    nextMove = cooperate;
 }
 
-Move ForgivingTitForTat::onDefect() const
+void ForgivingTitForTat::onDefect()
 {
     if (randomChance(0.2))
-        return cooperate;
+        nextMove = cooperate;
     else
-        return defect;
+        nextMove = defect;
 }
 
 AlwaysDefect::AlwaysDefect()
@@ -49,14 +55,14 @@ AlwaysDefect::AlwaysDefect()
     firstMove = defect;
 }
 
-Move AlwaysDefect::onCooperate() const
+void AlwaysDefect::onCooperate()
 {
-    return defect;
+    nextMove = defect;
 }
 
-Move AlwaysDefect::onDefect() const
+void AlwaysDefect::onDefect()
 {
-    return defect;
+    nextMove = defect;
 }
 
 AlwaysCooperate::AlwaysCooperate()
@@ -65,14 +71,14 @@ AlwaysCooperate::AlwaysCooperate()
     firstMove = cooperate;
 }
 
-Move AlwaysCooperate::onCooperate() const
+void AlwaysCooperate::onCooperate()
 {
-    return cooperate;
+    nextMove = cooperate;
 }
 
-Move AlwaysCooperate::onDefect() const
+void AlwaysCooperate::onDefect()
 {
-    return cooperate;
+    nextMove = cooperate;
 }
 
 Random::Random()
@@ -81,39 +87,40 @@ Random::Random()
     firstMove = randomChance(0.5) ? cooperate : defect;
 }
 
-Move Random::onCooperate() const
+void Random::onCooperate()
 {
-    return randomChance(0.5) ? cooperate : defect;
+    nextMove = randomChance(0.5) ? cooperate : defect;
 }
 
-Move Random::onDefect() const
+void Random::onDefect()
 {
-    return randomChance(0.5) ? cooperate : defect;
+    nextMove = randomChance(0.5) ? cooperate : defect;
 }
+
 ProbabilityCooperator::ProbabilityCooperator()
 {
     name = "Probability Cooperator";
     firstMove = randomChance(0.8) ? cooperate : defect;
 }
 
-Move ProbabilityCooperator::onCooperate() const
+void ProbabilityCooperator::onCooperate()
 {
     if (randomChance(0.8))
     {
-        return cooperate;
+        nextMove = cooperate;
     }
     else
-        return defect;
+        nextMove = defect;
 }
 
-Move ProbabilityCooperator::onDefect() const
+void ProbabilityCooperator::onDefect()
 {
     if (randomChance(0.8))
     {
-        return cooperate;
+        nextMove = cooperate;
     }
     else
-        return defect;
+        nextMove = defect;
 }
 
 ProbabilityDefector::ProbabilityDefector()
@@ -122,24 +129,24 @@ ProbabilityDefector::ProbabilityDefector()
     firstMove = randomChance(0.8) ? defect : cooperate;
 }
 
-Move ProbabilityDefector::onCooperate() const
+void ProbabilityDefector::onCooperate()
 {
     if (randomChance(0.8))
     {
-        return defect;
+        nextMove = defect;
     }
     else
-        return cooperate;
+        nextMove = cooperate;
 }
 
-Move ProbabilityDefector::onDefect() const
+void ProbabilityDefector::onDefect()
 {
     if (randomChance(0.8))
     {
-        return defect;
+        nextMove = defect;
     }
     else
-        return cooperate;
+        nextMove = cooperate;
 }
 
 SuspiciousTitForTat::SuspiciousTitForTat()
@@ -148,14 +155,14 @@ SuspiciousTitForTat::SuspiciousTitForTat()
     firstMove = defect;
 }
 
-Move SuspiciousTitForTat::onCooperate() const
+void SuspiciousTitForTat::onCooperate()
 {
-    return cooperate;
+    nextMove = cooperate;
 }
 
-Move SuspiciousTitForTat::onDefect() const
+void SuspiciousTitForTat::onDefect()
 {
-    return defect;
+    nextMove = defect;
 }
 
 GenerousTitForTat::GenerousTitForTat()
@@ -164,22 +171,22 @@ GenerousTitForTat::GenerousTitForTat()
     firstMove = cooperate;
 }
 
-Move GenerousTitForTat::onCooperate() const
+void GenerousTitForTat::onCooperate()
 {
-    return cooperate;
+    nextMove = cooperate;
 }
 
-Move GenerousTitForTat::onDefect() const
+void GenerousTitForTat::onDefect()
 {
     if (randomChance(
             std::min(
                 (1.0 - 1.0 * (def_cop - cop_cop) / 1.0 * (cop_cop - cop_def)),
                 (0.0 + 1.0 * (cop_cop - def_def) / 1.0 * (def_cop - def_def)))))
     {
-        return cooperate;
+        nextMove = cooperate;
     }
     else
-        return defect;
+        nextMove = defect;
 }
 
 GradualTitForTat::GradualTitForTat()
@@ -191,50 +198,50 @@ GradualTitForTat::GradualTitForTat()
     highestDefectStreak = 0;
 }
 
-Move GradualTitForTat::onCooperate() const
+void GradualTitForTat::onCooperate()
 {
     continueDefecting--;
 
     if (continueDefecting > 0)
-        return defect;
+        nextMove = defect;
     else
     {
-        return cooperate;
+        nextMove = cooperate;
     }
 }
 
-Move GradualTitForTat::onDefect() const
+void GradualTitForTat::onDefect()
 {
     highestDefectStreak++;
     continueDefecting = highestDefectStreak;
 
-    return defect;
+    nextMove = defect;
 }
 
-ImperfectTitForTat::ImperfectTitForTat() const
+ImperfectTitForTat::ImperfectTitForTat()
 {
     name = "Randomized Tit-for-Tat";
     firstMove = cooperate;
 }
 
-Move ImperfectTitForTat::onCooperate() const
+void ImperfectTitForTat::onCooperate()
 {
     if (randomChance(0.10))
     {
-        return defect;
+        nextMove = defect;
     }
     else
-        return cooperate;
+        nextMove = cooperate;
 }
 
-Move ImperfectTitForTat::onDefect() const
+void ImperfectTitForTat::onDefect()
 {
     if (randomChance(0.10))
     {
-        return cooperate;
+        nextMove = cooperate;
     }
     else
-        return defect;
+        nextMove = defect;
 }
 
 TitForTwoTats::TitForTwoTats()
@@ -244,19 +251,19 @@ TitForTwoTats::TitForTwoTats()
     consecutiveDefectCount = 0;
 }
 
-Move TitForTwoTats::onCooperate() const
+void TitForTwoTats::onCooperate()
 {
     consecutiveDefectCount = 0;
-    return cooperate;
+    nextMove = cooperate;
 }
 
-Move TitForTwoTats::onDefect() const
+void TitForTwoTats::onDefect()
 {
     consecutiveDefectCount++;
     if (consecutiveDefectCount > 2)
-        return defect;
+        nextMove = defect;
     else
-        return cooperate;
+        nextMove = cooperate;
 }
 
 TwoTitsForTat::TwoTitsForTat()
@@ -266,34 +273,34 @@ TwoTitsForTat::TwoTitsForTat()
     defectAgain = false;
 }
 
-Move TwoTitsForTat::onCooperate() const
+void TwoTitsForTat::onCooperate()
 {
     if (defectAgain)
-        return defect;
+        nextMove = defect;
     else
-        return cooperate;
+        nextMove = cooperate;
 
     defectAgain = false;
 }
 
-Move TwoTitsForTat::onDefect() const
+void TwoTitsForTat::onDefect()
 {
     defectAgain = true;
-    return defect;
+    nextMove = defect;
 }
 
 /*
-OmegaTitForTat::OmegaTitForTat()const
+OmegaTitForTat::OmegaTitForTat()
 {
     name = "Omega Tit-for-Tat";
     firstMove = cooperate;
 }
 
- Move OmegaTitForTat::onCooperate()const
+void OmegaTitForTat::onCooperate()
 {
 }
 
- Move OmegaTitForTat::onDefect()const
+void OmegaTitForTat::onDefect()
 {
 }
 */
@@ -305,15 +312,15 @@ GrimTrigger::GrimTrigger()
     triggered = false;
 }
 
-Move GrimTrigger::onCooperate() const
+void GrimTrigger::onCooperate()
 {
-    return triggered ? defect : cooperate;
+    nextMove = triggered ? defect : cooperate;
 }
 
-Move GrimTrigger::onDefect() const
+void GrimTrigger::onDefect()
 {
     triggered = true;
-    return defect;
+    nextMove = defect;
 }
 
 Pavlov::Pavlov()
@@ -322,147 +329,147 @@ Pavlov::Pavlov()
     firstMove = cooperate;
 }
 
-Move Pavlov::onCooperate() const
+void Pavlov::onCooperate()
 {
-    return previousMove; // no change
+    return; // no change
 }
 
-Move Pavlov::onDefect() const
+void Pavlov::onDefect()
 {
-    if (previousMove == defect)
-        return cooperate;
+    if (nextMove == defect)
+        nextMove = cooperate;
     else
-        return defect;
+        nextMove = defect;
 }
 
 /*
-NPavlov::NPavlov()const
+NPavlov::NPavlov()
 {
     name = "n-Pavlov";
     firstMove = cooperate;
 }
 
- Move NPavlov::onCooperate()const
+void NPavlov::onCooperate()
 {
 }
 
- Move NPavlov::onDefect()const
+void NPavlov::onDefect()
 {
 }
 */
 
 /*
-AdaptivePavlov::AdaptivePavlov()const
+AdaptivePavlov::AdaptivePavlov()
 {
     name = "Adaptive Pavlov";
     firstMove = cooperate;
 }
 
- Move AdaptivePavlov::onCooperate()const
+void AdaptivePavlov::onCooperate()
 {
 }
 
- Move AdaptivePavlov::onDefect()const
+void AdaptivePavlov::onDefect()
 {
 }
 */
 
 /*
-Reactive::Reactive()const
+Reactive::Reactive()
 {
     name = "Reactive";
     firstMove = cooperate;
 }
 
- Move Reactive::onCooperate()const
+void Reactive::onCooperate()
 {
 }
 
- Move Reactive::onDefect()const
+void Reactive::onDefect()
 {
 }
 
-MemoryOne::MemoryOne()const
+MemoryOne::MemoryOne()
 {
     name = "Memory-one";
     firstMove = cooperate;
 }
 
- Move MemoryOne::onCooperate()const
+void MemoryOne::onCooperate()
 {
 }
 
- Move MemoryOne::onDefect()const
+void MemoryOne::onDefect()
 {
 }
 
-ZeroDeterminant::ZeroDeterminant()const
+ZeroDeterminant::ZeroDeterminant()
 {
     name = "Zero Determinant";
     firstMove = cooperate;
 }
 
- Move ZeroDeterminant::onCooperate()const
+void ZeroDeterminant::onCooperate()
 {
 }
 
- Move ZeroDeterminant::onDefect()const
+void ZeroDeterminant::onDefect()
 {
 }
 
-Equalizer::Equalizer()const
+Equalizer::Equalizer()
 {
     name = "Equalizer";
     firstMove = cooperate;
 }
 
- Move Equalizer::onCooperate()const
+void Equalizer::onCooperate()
 {
 }
 
- Move Equalizer::onDefect()const
+void Equalizer::onDefect()
 {
 }
 
-Extortionary::Extortionary()const
+Extortionary::Extortionary()
 {
     name = "Extortionary";
     firstMove = cooperate;
 }
 
- Move Extortionary::onCooperate()const
+void Extortionary::onCooperate()
 {
 }
 
- Move Equalizer::onDefect()const
+void Equalizer::onDefect()
 {
 }
 
-Generous::Generous()const
-{
-    name = "Generous";
-    firstMove = cooperate;
-}
-
- Move Generous::onCooperate()const
-{
-}
-
- Move Generous::onDefect()const
-{
-}
-
-Generous::Equalizer()const
+Generous::Generous()
 {
     name = "Generous";
     firstMove = cooperate;
 }
 
- Move Generous::onCooperate()const
+void Generous::onCooperate()
 {
 }
 
- Move Generous::onDefect()const
+void Generous::onDefect()
+{
+}
+
+Generous::Equalizer()
+{
+    name = "Generous";
+    firstMove = cooperate;
+}
+
+void Generous::onCooperate()
+{
+}
+
+void Generous::onDefect()
 {
 }
 
