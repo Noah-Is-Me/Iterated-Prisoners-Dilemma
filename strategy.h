@@ -18,8 +18,10 @@ public:
 
     std::mutex mtx;
     int points;
+    double averagePayoff;
+    double frequency;
 
-    void setup(double probCopAfterCop, double probCopAfterDef, double probCopFirst);
+    void setup(double probCopAfterCop, double probCopAfterDef, double probCopFirst, double frequency);
     Move getNextMove(Move opponentMove) const;
     Move getFirstMove() const;
     void addPoints(int value);

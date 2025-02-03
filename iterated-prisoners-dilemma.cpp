@@ -43,6 +43,19 @@ void runMatchup(Strategy &s1, Strategy &s2, double miscommunicationRate, double 
     Move s1Move = s1.getFirstMove();
     Move s2Move = s2.getFirstMove();
 
+    const double q1 = s1.probCopAfterCop;
+    const double p1 = s1.probCopAfterDef;
+    const double q2 = s2.probCopAfterCop;
+    const double p2 = s2.probCopAfterDef;
+
+    const double const1 = (q1 + (p1 - q1) * q2) / (1 - (p1 - q1) * (p2 - q2));
+    const double const2 = (q2 + (p2 - q2) * q1) / (1 - (p2 - q2) * (p1 - q1));
+    const double s1Payoff = 1 + (4 * const2) - const1 - (const1 * const2);
+    const double s2Payoff = 1 + (4 * const1) - const2 - (const2 * const1);
+
+    s1.averagePayoff += s1Payoff;
+    s2.averagePayoff += s2Payoff;
+
     for (int k = 0; k < iterationCount; k++)
     {
         // runIteration(s1, s2, s1Move, s2Move, miscommunicationRate, misexecutionRate);
@@ -70,7 +83,7 @@ void runRoundRobin(int generation, std::array<Strategy, N1> &strategies, double 
 
     for (int i = 0; i < strategies.size(); i++)
     {
-        for (int j = i; j < strategies.size(); j++)
+        for (int j = i + 1; j < strategies.size(); j++)
         {
             Strategy &s1 = strategies[i];
             Strategy &s2 = strategies[j];
@@ -142,23 +155,32 @@ void outputPopulationData(int generation, const std::array<Strategy, N1> &strate
 template <std::size_t N1>
 std::array<Strategy, N1> generateOffspring(const std::array<Strategy, N1> &strategies)
 {
+    double totalAveragePayoff = 0;
     int totalPoints = 0;
     for (const Strategy &strategy : strategies)
     {
         totalPoints += strategy.points;
+        totalAveragePayoff += strategy.averagePayoff;
     }
+    totalAveragePayoff /= (strategies.size() - 1);
 
     int currentOffspring = 0;
     std::array<Strategy, N1> offspring;
 
     for (const Strategy &strategy : strategies)
     {
+        double newFrequency = strategy.frequency / (N1 - 1) * strategy.averagePayoff / totalAveragePayoff;
+        // strategy.frequency = newFrequency;
+        // strategy.points = 0;
+
+        // int offspringCount = newFrequency * N1;
         int offspringCount = (1.0 * strategy.points / totalPoints) * N1;
+
         // std::cout << offspringCount << std::endl;
         for (int i = 0; i < offspringCount; i++)
         {
             if (currentOffspring < N1)
-                offspring[currentOffspring++].setup(strategy.probCopAfterCop, strategy.probCopAfterDef, strategy.probCopFirst);
+                offspring[currentOffspring++].setup(strategy.probCopAfterCop, strategy.probCopAfterDef, strategy.probCopFirst, newFrequency);
             else // offspring array is full
                 return offspring;
         }
@@ -168,7 +190,7 @@ std::array<Strategy, N1> generateOffspring(const std::array<Strategy, N1> &strat
     while (currentOffspring < N1)
     {
         const Strategy &randomStrategy = strategies[randomInt(0, N1)];
-        offspring[currentOffspring++].setup(randomStrategy.probCopAfterCop, randomStrategy.probCopAfterDef, randomStrategy.probCopFirst);
+        offspring[currentOffspring++].setup(randomStrategy.probCopAfterCop, randomStrategy.probCopAfterDef, randomStrategy.probCopFirst, 1.0 / N1);
     }
 
     return offspring;
@@ -263,7 +285,7 @@ int main()
         double probCopAfterCop = randomDouble();
         double probCopAfterDef = randomDouble();
         double probCopFirst = randomDouble();
-        strategies[i].setup(probCopAfterCop, probCopAfterDef, probCopFirst);
+        strategies[i].setup(probCopAfterCop, probCopAfterDef, probCopFirst, 1.0 / strategyCount);
     }
 
     // for (int i = 0; i < 1; i++)
@@ -278,13 +300,13 @@ int main()
         runRoundRobin(generation, strategies, miscommunicationRate, misexecutionRate, iterationCount, parallelProcessMatchups, maxMatchupThreads, giveGenerationUpdates);
         strategies = generateOffspring(strategies);
 
-        if (generation == 5)
-        {
-            for (int i = 0; i < 1; i++)
-            {
-                strategies[i].setup(0.99, 0.01, 1.00);
-            }
-        }
+        // if (generation == 5)
+        // {
+        //     for (int i = 0; i < 1; i++)
+        //     {
+        //         strategies[i].setup(0.99, 0.01, 1.00, 1.0 / strategyCount);
+        //     }
+        // }
         if (generation % frameFrequency == 0)
         {
             outputPopulationData(generation, strategies);

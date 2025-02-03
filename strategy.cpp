@@ -1,12 +1,14 @@
 #include "strategy.h"
 #include "helper.h"
 
-void Strategy::setup(double probCopAfterCop, double probCopAfterDef, double probCopFirst)
+void Strategy::setup(double probCopAfterCop, double probCopAfterDef, double probCopFirst, double frequency)
 {
     this->probCopAfterCop = probCopAfterCop;
     this->probCopAfterDef = probCopAfterDef;
     this->probCopFirst = probCopFirst;
+    this->frequency = frequency;
     this->points = 0;
+    this->averagePayoff = 0;
 }
 
 Move Strategy::getNextMove(Move opponentMove) const
