@@ -1,13 +1,11 @@
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from itertools import cycle
 import subprocess
 import numpy as np
 import os
 from datetime import datetime
 import signal
 import matplotlib.transforms as mtransforms
-from collections import Counter
-from matplotlib.animation import FuncAnimation
 
 print("Hello world!")
 
@@ -118,56 +116,24 @@ def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopA
     #ax.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
     #plt.tight_layout()
     plt.savefig(os.path.join(outputDir, f"Strategy vs Time.png"))
-    plt.close(fig)
-
-
-def createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues):
-    ax.set_title("Population at t=" + generation)
-    ax.set_xlabel("Probability Cop after Def")
-    ax.set_ylabel("Probability Cop after Cop")
-    ax.set_zlabel("Frequency")
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.set_zlim(0, 1)
-    ax.grid(True)
-    ax.invert_xaxis()
-
-    strategyCount = len(probCopAfterCopValues)
-    pairCount = Counter(zip(probCopAfterCopValues, probCopAfterDefValues))
-    probCopAfterCopValues = []
-    probCopAfterDefValues = []
-    frequencyValues = []
-    for (probCopAfterCop, probCopAfterDef), count in pairCount.items():
-        probCopAfterCopValues.append(probCopAfterCop)
-        probCopAfterDefValues.append(probCopAfterDef)
-        frequencyValues.append(count)
-    height = [count / strategyCount for count in frequencyValues]
-
-    ax.bar3d(probCopAfterDefValues, probCopAfterCopValues, np.zeros_like(height), 0.01, 0.01, height, shade=True)
 
 
 def createPopulationGraph(generation, probCopAfterCopValues, probCopAfterDefValues):
-    fig = plt.figure(figsize=(figureWidth, figureHeight))
-    ax = fig.add_subplot(111, projection="3d")
-    createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues)
+    fig, ax = plt.subplots()
+    fig.set_size_inches(figureWidth, figureHeight)
+    ax.set_title("Population at t=" + generation)
+
+    ax.set_xlabel("Probability Cop after Cop")
+    ax.set_xlim(0,1)
+    ax.set_ylabel("Probability Cop after Def")
+    ax.set_ylim(0,1)
+    ax.grid(True)
+
+    ax.plot(probCopAfterCopValues, probCopAfterDefValues, marker="o", linestyle="None")
+    #plt.tight_layout()
     plt.savefig(os.path.join(outputDir, f"Population at t={generation} Graph"))
-    plt.close(fig)
 
 
-def createAnimation(data):
-    fig = plt.figure(figsize=(figureWidth, figureHeight))
-    ax = fig.add_subplot(111, projection="3d")
-
-    def update(frame):
-        ax.clear()
-        generation, probCopAfterCopValues, probCopAfterDefValues = data[frame]
-        createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues)
-
-    ani = FuncAnimation(fig, update, frames=len(data), interval=500)
-    ani.save(os.path.join(outputDir, "Population Animation.gif"), writer="pillow")
-
-
-allData = []
 
 process = subprocess.Popen(
     [os.path.join(os.getcwd(), exeFile)],
@@ -192,8 +158,7 @@ for line in iter(process.stdout.readline, ""):
         generation = values[0]
         probCopAfterCopValues = [float(values[i].strip()) for i in range(1, len(values), 2)]
         probCopAfterDefValues = [float(values[i].strip()) for i in range(2, len(values), 2)]
-        #createPopulationGraph(generation, probCopAfterCopValues, probCopAfterDefValues)
-        allData.append((generation, probCopAfterCopValues, probCopAfterDefValues))
+        createPopulationGraph(generation, probCopAfterCopValues, probCopAfterDefValues)
         continue
 
     if "[GRAPH 2]" in line:
@@ -208,7 +173,6 @@ for line in iter(process.stdout.readline, ""):
 process.stdout.close()
 process.wait()
 
-createAnimation(allData)
 print(f"Graphs succesfully saved in: {outputDir}")
 
 

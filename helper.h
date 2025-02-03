@@ -7,6 +7,10 @@
 
 bool randomChance(double probability);
 
+double randomDouble();
+
+int randomInt(int startIncluding, int endExcluding);
+
 enum Move
 {
     cooperate,
@@ -24,5 +28,11 @@ enum PointValues
 extern const int pointMatrix[2][2];
 
 Move getFail(Move move, double failRate);
+
+struct GenerationData
+{
+    double averageProbCopAfterCop;
+    double averageProbCopAfterDef;
+};
 
 #endif

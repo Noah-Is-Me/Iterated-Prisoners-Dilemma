@@ -8,42 +8,6 @@
 
 #include "strategy.h"
 
-void runIteration(Strategy &s1, Strategy &s2, double miscommunicationRate, double misexecutionRate)
-{
-    Move s1Move = getFail(s1.nextMove, misexecutionRate);
-    Move s2Move = getFail(s2.nextMove, misexecutionRate);
-
-    s1.onMove(getFail(s2Move, miscommunicationRate));
-    s2.onMove(getFail(s1Move, miscommunicationRate));
-
-    s1.points += pointMatrix[s1Move][s2Move];
-    s2.points += pointMatrix[s2Move][s1Move];
-}
-
-template <std::size_t N1, std::size_t N2>
-void runMatchup(int u, int i, int j, std::array<StrategyData, N1> &strategies, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates, int iterationCount)
-{
-    StrategyData &sd1 = strategies[i];
-    StrategyData &sd2 = strategies[j];
-
-    std::unique_ptr<Strategy> s1_ = sd1.constructor();
-    std::unique_ptr<Strategy> s2_ = sd2.constructor();
-
-    Strategy &s1 = *s1_;
-    Strategy &s2 = *s2_;
-
-    s1.reset();
-    s2.reset();
-
-    for (int k = 0; k < iterationCount; k++)
-    {
-        runIteration(s1, s2, miscommunicationRates[u], misexecutionRates[u]);
-    }
-
-    sd1.addPoints(u, s1.points);
-    sd2.addPoints(u, s2.points);
-}
-
 void joinThreads(std::vector<std::thread> &threads)
 {
     for (std::thread &t : threads)
@@ -53,16 +17,54 @@ void joinThreads(std::vector<std::thread> &threads)
     threads.clear();
 }
 
-template <std::size_t N1, std::size_t N2>
-void runRound(int u, std::array<StrategyData, N1> &strategies, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates, int iterationCount, int parallelProcessMatchups, int maxMatchupThreads, int giveRoundUpdates)
+void runIteration(Strategy &s1, Strategy &s2, Move &s1Move, Move &s2Move, double miscommunicationRate, double misexecutionRate)
+{
+    Move s1Move_ = s1Move;
+    Move s2Move_ = s2Move;
+
+    // Move s1Move_ = getFail(s1Move, misexecutionRate);
+    // Move s2Move_ = getFail(s2Move, misexecutionRate);
+
+    // s1.addPoints(pointMatrix[s1Move_][s2Move_]);
+    // s2.addPoints(pointMatrix[s2Move_][s1Move_]);
+
+    s1Move = cooperate;
+    s2Move = cooperate;
+
+    // s1Move = s1.getNextMove(s2Move_);
+    // s2Move = s2.getNextMove(s1Move_);
+
+    // s1Move = s1.getNextMove(getFail(s2Move_, miscommunicationRate));
+    // s2Move = s2.getNextMove(getFail(s1Move_, miscommunicationRate));
+}
+
+void runMatchup(Strategy &s1, Strategy &s2, double miscommunicationRate, double misexecutionRate, int iterationCount)
+{
+    Move s1Move = s1.getFirstMove();
+    Move s2Move = s2.getFirstMove();
+
+    for (int k = 0; k < iterationCount; k++)
+    {
+        // runIteration(s1, s2, s1Move, s2Move, miscommunicationRate, misexecutionRate);
+
+        Move s1Move_ = getFail(s1Move, misexecutionRate);
+        Move s2Move_ = getFail(s2Move, misexecutionRate);
+
+        // s1.addPoints(pointMatrix[s1Move_][s2Move_]);
+        // s2.addPoints(pointMatrix[s2Move_][s1Move_]);
+
+        s1.points += pointMatrix[s1Move_][s2Move_];
+        s2.points += pointMatrix[s2Move_][s1Move_];
+
+        s1Move = s1.getNextMove(getFail(s2Move_, miscommunicationRate));
+        s2Move = s2.getNextMove(getFail(s1Move_, miscommunicationRate));
+    }
+}
+
+template <std::size_t N1>
+void runRoundRobin(int generation, std::array<Strategy, N1> &strategies, double miscommunicationRate, double misexecutionRate, int iterationCount, bool parallelProcessMatchups, int maxMatchupThreads, bool giveGenerationUpdates)
 {
     auto roundStart = std::chrono::high_resolution_clock::now();
-
-    /* int totalMatchups = (strategies.size() * (strategies.size() + 1)) / 2;
-    runThreads(totalMatchups, strategies.size(), strategies.size(), parallelProcessMatchups, maxMatchupThreads,
-               runMatchup<N1, N2>,
-               std::ref(strategies), iterationCount, std::cref(miscommunicationRates), std::cref(misexecutionRates));
-    */
 
     std::vector<std::thread> threads;
 
@@ -70,6 +72,9 @@ void runRound(int u, std::array<StrategyData, N1> &strategies, const std::array<
     {
         for (int j = i; j < strategies.size(); j++)
         {
+            Strategy &s1 = strategies[i];
+            Strategy &s2 = strategies[j];
+
             if (parallelProcessMatchups)
             {
                 if (threads.size() >= maxMatchupThreads)
@@ -77,11 +82,11 @@ void runRound(int u, std::array<StrategyData, N1> &strategies, const std::array<
                     joinThreads(threads);
                 }
 
-                threads.push_back(std::thread(runMatchup<N1, N2>, u, i, j, std::ref(strategies), std::cref(miscommunicationRates), std::cref(misexecutionRates), iterationCount));
+                threads.push_back(std::thread(runMatchup, std::ref(s1), std::ref(s2), miscommunicationRate, misexecutionRate, iterationCount));
             }
             else
             {
-                runMatchup(u, i, j, strategies, miscommunicationRates, misexecutionRates, iterationCount);
+                runMatchup(s1, s2, miscommunicationRate, misexecutionRate, iterationCount);
             }
         }
     }
@@ -89,87 +94,121 @@ void runRound(int u, std::array<StrategyData, N1> &strategies, const std::array<
     if (parallelProcessMatchups)
         joinThreads(threads);
 
-    if (giveRoundUpdates && u % 5 == 0)
+    if (giveGenerationUpdates && generation % 1 == 0)
     {
-        int totalRounds = miscommunicationRates.size();
+        // int totalRounds = miscommunicationRates.size();
         auto roundEnd = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> roundDuration = roundEnd - roundStart;
-        double estimatedTime = roundDuration.count() * (totalRounds - (u + 1));
-        std::cout << "[NOTICE] Round " << u << " complete, Time: " << roundDuration.count() << " seconds\n"
-                  << "[NOTICE] Estimated time: " << estimatedTime << " seconds  (" << estimatedTime / 60 << " minutes)" << std::endl;
+        // double estimatedTime = roundDuration.count() * (totalRounds - (u + 1));
+        std::cout << "[NOTICE] Generation " << generation << " complete, Time: " << roundDuration.count() << " seconds" << std::endl;
+        //<< "[NOTICE] Estimated time: " << estimatedTime << " seconds  (" << estimatedTime / 60 << " minutes)" << std::endl;
     }
 }
 
-/* template <typename Function, typename... Args>
-void runThreads(int iterations, int iterator1, int iterator2, bool useParallelProcessing, int maxThreads, Function &&func, Args &&...args)
+template <std::size_t N1>
+GenerationData getGenerationData(const std::array<Strategy, N1> &strategies)
 {
-    std::vector<std::thread> threads;
+    double averageProbCopAfterCop = 0;
+    double averageProbCopAfterDef = 0;
 
-    int i1 = 0;
-    int i2 = 0;
+    // double averagePoints;
+    // TODO: Will have to use hashtables or something to combine scores of the same strategies
 
-    for (int i = 0; i < iterations; i++)
+    for (const Strategy &strategy : strategies)
     {
-        if (useParallelProcessing)
-        {
-            if (threads.size() >= maxThreads)
-            {
-                joinThreads(threads);
-            }
-
-            threads.push_back(std::thread(
-                std::forward<Function>(func), i, i1, i2++,
-                std::forward<Args>(args)...));
-        }
-        else
-        {
-            std::forward<Function>(func)(i, i1, i2++, std::forward<Args>(args)...);
-        }
-
-        if (i1 % iterator1 == 0)
-            i1 = 0;
-
-        if (i2 % iterator2 == 0)
-        {
-            i1++;
-            i2 = 0;
-        }
+        averageProbCopAfterCop += strategy.probCopAfterCop;
+        averageProbCopAfterDef += strategy.probCopAfterDef;
     }
 
-    if (useParallelProcessing)
-        joinThreads(threads);
+    averageProbCopAfterCop /= N1;
+    averageProbCopAfterDef /= N1;
+
+    return GenerationData{averageProbCopAfterCop, averageProbCopAfterDef};
 }
-*/
 
-template <std::size_t N1, std::size_t N2>
-void outputData(const std::array<StrategyData, N1> &strategies, const std::array<double, N2> &miscommunicationRates, const std::array<double, N2> &misexecutionRates)
+template <std::size_t N1>
+void outputPopulationData(int generation, const std::array<Strategy, N1> &strategies)
 {
-    std::string fullData = "";
+    std::string fullData = "[GRAPH 1]" + std::to_string(generation) + ",";
 
-    for (const StrategyData &s : strategies)
+    for (const Strategy &strategy : strategies)
     {
-        std::string data = s.name + ",";
-        for (int i = 0; i < N2; i++)
-        {
-            data += std::to_string(miscommunicationRates[i]) + "," + std::to_string(misexecutionRates[i]) + "," + std::to_string(s.averagePoints[i]) + ",";
-        }
-
-        fullData += data + "\n";
-        std::cout << data << std::endl;
+        fullData += std::to_string(strategy.probCopAfterCop) + ", " + std::to_string(strategy.probCopAfterDef) + ",";
     }
+
+    std::cout << fullData << std::endl;
 }
 
-template <typename T>
-std::unique_ptr<Strategy> makeConstructor()
+template <std::size_t N1>
+std::array<Strategy, N1> generateOffspring(const std::array<Strategy, N1> &strategies)
 {
-    return std::make_unique<T>();
+    int totalPoints = 0;
+    for (const Strategy &strategy : strategies)
+    {
+        totalPoints += strategy.points;
+    }
+
+    int currentOffspring = 0;
+    std::array<Strategy, N1> offspring;
+
+    for (const Strategy &strategy : strategies)
+    {
+        int offspringCount = (1.0 * strategy.points / totalPoints) * N1;
+        // std::cout << offspringCount << std::endl;
+        for (int i = 0; i < offspringCount; i++)
+        {
+            if (currentOffspring < N1)
+                offspring[currentOffspring++].setup(strategy.probCopAfterCop, strategy.probCopAfterDef, strategy.probCopFirst);
+            else // offspring array is full
+                return offspring;
+        }
+    }
+
+    // randomly create offspring if offspring array has empty spaces (due to roundoff error)
+    while (currentOffspring < N1)
+    {
+        const Strategy &randomStrategy = strategies[randomInt(0, N1)];
+        offspring[currentOffspring++].setup(randomStrategy.probCopAfterCop, randomStrategy.probCopAfterDef, randomStrategy.probCopFirst);
+    }
+
+    return offspring;
 }
 
-template <typename... Types>
-std::array<std::function<std::unique_ptr<Strategy>()>, sizeof...(Types)> makeConstructors()
+template <std::size_t N1>
+void outputData(const std::array<GenerationData, N1> &generationData)
 {
-    return std::array<std::function<std::unique_ptr<Strategy>()>, sizeof...(Types)>{
-        &makeConstructor<Types>...};
+    std::string fullData = "[GRAPH 2]";
+
+    for (const GenerationData &data : generationData)
+    {
+        fullData += std::to_string(data.averageProbCopAfterCop) + ", " + std::to_string(data.averageProbCopAfterDef) + ",";
+    }
+
+    std::cout << fullData << std::endl;
+
+    /*
+    double averageProbCopAfterCop = 0;
+    double averageProbCopAfterDef = 0;
+
+    // double averagePoints;
+    // TODO: Will have to use hashtables or something to combine scores of the same strategies
+
+    for (const Strategy &strategy : strategies)
+    {
+        std::string data = std::to_string(strategy.probCopAfterCop) + "," + std::to_string(strategy.probCopAfterDef) + "," + std::to_string(strategy.points) + ",";
+        // std::cout << data << std::endl;
+
+        averageProbCopAfterCop += strategy.probCopAfterCop;
+        averageProbCopAfterDef += strategy.probCopAfterDef;
+    }
+
+    averageProbCopAfterCop /= N1;
+    averageProbCopAfterDef /= N1;
+
+    std::cout << std::to_string(averageProbCopAfterCop) + ", " + std::to_string(averageProbCopAfterDef) << std::endl;
+
+    // return fullData;
+    */
 }
 
 int main()
@@ -178,13 +217,11 @@ int main()
 
     const int cores = std::thread::hardware_concurrency();
 
-    const int maxRoundThreads = cores;
     const int maxMatchupThreads = cores;
-
-    const bool parallelProcessRounds = true;
     const bool parallelProcessMatchups = false;
+    // TODO: parallel process is slowing down the program for some reason
 
-    const bool giveRoundUpdates = false;
+    const bool giveGenerationUpdates = true;
 
     const double startingMiscommunicationRate = 0.00;
     const double startingMisexecutionRate = 0.00;
@@ -192,129 +229,80 @@ int main()
     const double miscommunicationRateIncrement = 0.01;
     const double misexecutionRateIncrement = 0.00;
 
-    const int totalRounds = 100 + 1;
-    const int iterationCount = 10000;
+    const int totalGenerations = 100;
+    const int iterationCount = 100;
 
-    std::array<double, totalRounds> miscommunicationRates;
-    std::array<double, totalRounds> misexecutionRates;
-    for (int i = 0; i < totalRounds; i++)
+    const int strategyCount = 100;
+
+    const int frameFrequency = 1;
+
+    // TODO:
+    // const double startingMutationRate = 0.00;
+    // const mutationRateIncrement = 0.00;
+
+    // -----------------
+
+    // TODO: these rates should be constant over an entire simulation
+    /*
+    std::array<double, totalGenerations> miscommunicationRates;
+    std::array<double, totalGenerations> misexecutionRates;
+    for (int i = 0; i < totalGenerations; i++)
     {
         miscommunicationRates[i] = startingMiscommunicationRate + miscommunicationRateIncrement * i;
         misexecutionRates[i] = startingMisexecutionRate + misexecutionRateIncrement * i;
     }
+    */
+    double miscommunicationRate = 0.00;
+    double misexecutionRate = 0.00;
 
-    // All Strategies
-    // auto strategyConstructors = makeConstructors<
-    //     TitForTat,
-    //     ForgivingTitForTat,
-    //     AlwaysDefect,
-    //     AlwaysCooperate,
-    //     Random,
-    //     ProbabilityCooperator,
-    //     ProbabilityDefector,
-    //     SuspiciousTitForTat,
-    //     GenerousTitForTat,
-    //     GradualTitForTat,
-    //     ImperfectTitForTat,
-    //     TitForTwoTats,
-    //     TwoTitsForTat,
-    //     GrimTrigger,
-    //     Pavlov>();
+    std::array<GenerationData, totalGenerations> generationData;
 
-    // TitForTat vs ForgivingTitForTat
-    // auto strategyConstructors = makeConstructors<
-    //     ForgivingTitForTat,
-    //     TitForTat,
-    //     TitForTat,
-    //     TitForTat,
-    //     TitForTat,
-    //     TitForTat,
-    //     TitForTat,
-    //     TitForTat,
-    //     TitForTat,
-    //     TitForTat,
-    //     Random>();
-
-    // Nice Strategies
-    // auto strategyConstructors = makeConstructors<
-    //     AlwaysCooperate,
-    //     ForgivingTitForTat,
-    //     TitForTat,
-    //     ProbabilityCooperator,
-    //     GenerousTitForTat,
-    //     TitForTwoTats,
-    //     Random>();
-
-    // Mean Strategies
-    // auto strategyConstructors = makeConstructors<
-    //     GradualTitForTat,
-    //     GrimTrigger,
-    //     SuspiciousTitForTat,
-    //     ProbabilityDefector,
-    //     TwoTitsForTat,
-    //     Random>();
-
-    // Nice Strategies Infiltration
-    auto strategyConstructors = makeConstructors<
-        AlwaysDefect,
-        AlwaysCooperate,
-        ForgivingTitForTat,
-        TitForTat,
-        ProbabilityCooperator,
-        GenerousTitForTat,
-        TitForTwoTats,
-        Random>();
-
-    std::array<StrategyData, strategyConstructors.size()> strategies;
+    std::array<Strategy, strategyCount> strategies;
     for (int i = 0; i < strategies.size(); i++)
     {
-        strategies[i].name = strategyConstructors[i]()->name;
-        strategies[i].totalPoints.assign(totalRounds, 0);
-        strategies[i].averagePoints.assign(totalRounds, 0);
-        strategies[i].constructor = strategyConstructors[i];
+        double probCopAfterCop = randomDouble();
+        double probCopAfterDef = randomDouble();
+        double probCopFirst = randomDouble();
+        strategies[i].setup(probCopAfterCop, probCopAfterDef, probCopFirst);
     }
 
-    /* runThreads(totalRounds, parallelProcessRounds, maxRoundThreads, runRound<strategies.size(), totalRounds>,
-               std::ref(strategies), iterationCount, std::cref(miscommunicationRates), std::cref(misexecutionRates), parallelProcessMatchups, giveRoundUpdates, totalRounds, maxMatchupThreads);
-    */
+    // for (int i = 0; i < 1; i++)
+    // {
+    //     strategies[i].setup(0.99, 0.01, 1.00);
+    // }
 
-    std::vector<std::thread> threads;
-
-    for (int u = 0; u < totalRounds; u++)
+    generationData[0] = getGenerationData(strategies);
+    outputPopulationData(0, strategies);
+    for (int generation = 1; generation <= totalGenerations; generation++)
     {
-        if (parallelProcessRounds)
+        runRoundRobin(generation, strategies, miscommunicationRate, misexecutionRate, iterationCount, parallelProcessMatchups, maxMatchupThreads, giveGenerationUpdates);
+        strategies = generateOffspring(strategies);
+
+        if (generation == 5)
         {
-            if (threads.size() >= maxRoundThreads)
+            for (int i = 0; i < 1; i++)
             {
-                joinThreads(threads);
+                strategies[i].setup(0.99, 0.01, 1.00);
             }
-
-            threads.push_back(std::thread(
-                runRound<strategies.size(), totalRounds>, u, std::ref(strategies), std::cref(miscommunicationRates), std::cref(misexecutionRates), iterationCount, parallelProcessMatchups, maxMatchupThreads, giveRoundUpdates));
         }
-        else
+        if (generation % frameFrequency == 0)
         {
-            runRound(u, strategies, miscommunicationRates, misexecutionRates, iterationCount, parallelProcessMatchups, maxMatchupThreads, giveRoundUpdates);
+            outputPopulationData(generation, strategies);
         }
+
+        generationData[generation] = getGenerationData(strategies);
     }
 
-    if (parallelProcessRounds)
-        joinThreads(threads);
+    outputPopulationData(totalGenerations, strategies);
+    outputData(generationData);
 
-    for (StrategyData &strategy : strategies)
-    {
-        for (int i = 0; i < totalRounds; i++)
-        {
-            strategy.averagePoints[i] = 1.0 * strategy.totalPoints[i] / (strategies.size() + 1);
-        }
-    }
-
-    outputData(strategies, miscommunicationRates, misexecutionRates);
-
+    // TODO: find out why this stopwatch is cooked
+    /*
     auto totalEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> totalDuration = totalEnd - totalStart;
     std::cout << "[NOTICE] Total time taken: " << totalDuration.count() << " seconds\n"
-              << "[NOTICE] Average round time : " << totalDuration.count() / totalRounds << " seconds " << std::endl;
+              << "[NOTICE] Average generation time : " << totalDuration.count() / totalGenerations << " seconds " << std::endl;
+    */
 
     return 0;
 }
