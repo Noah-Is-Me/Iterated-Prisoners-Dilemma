@@ -99,6 +99,9 @@ figureHeight = 4.80 * 1.5
 
 # markers:  , . o x X none "" 
 
+def normalizeData(data):
+    return (data - np.min(data)) / (np.max(data) - np.min(data))
+
 
 def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopAfterDefValues):
     fig, ax = plt.subplots()
@@ -121,7 +124,7 @@ def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopA
     plt.close(fig)
 
 
-def createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues):
+def createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues):
     ax.set_title("Population at t=" + generation)
     ax.set_xlabel("Probability Cop after Def")
     ax.set_ylabel("Probability Cop after Cop")
@@ -132,24 +135,27 @@ def createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues):
     ax.grid(True)
     ax.invert_xaxis()
 
-    strategyCount = len(probCopAfterCopValues)
-    pairCount = Counter(zip(probCopAfterCopValues, probCopAfterDefValues))
-    probCopAfterCopValues = []
-    probCopAfterDefValues = []
-    frequencyValues = []
-    for (probCopAfterCop, probCopAfterDef), count in pairCount.items():
-        probCopAfterCopValues.append(probCopAfterCop)
-        probCopAfterDefValues.append(probCopAfterDef)
-        frequencyValues.append(count)
-    height = [count / strategyCount for count in frequencyValues]
+    #strategyCount = len(probCopAfterCopValues)
+    # pairCount = Counter(zip(probCopAfterCopValues, probCopAfterDefValues))
+    # probCopAfterCopValues = []
+    # probCopAfterDefValues = []
+    # frequencyValues = []
+    # for (probCopAfterCop, probCopAfterDef), count in pairCount.items():
+    #     probCopAfterCopValues.append(probCopAfterCop)
+    #     probCopAfterDefValues.append(probCopAfterDef)
+    #     frequencyValues.append(count)
+    #height = [count / strategyCount for count in frequencyValues]
 
+    #height = normalizeData(frequencyValues)
+    height = frequencyValues
+    
     ax.bar3d(probCopAfterDefValues, probCopAfterCopValues, np.zeros_like(height), 0.01, 0.01, height, shade=True)
 
 
-def createPopulationGraph(generation, probCopAfterCopValues, probCopAfterDefValues):
+def createPopulationGraph(generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues):
     fig = plt.figure(figsize=(figureWidth, figureHeight))
     ax = fig.add_subplot(111, projection="3d")
-    createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues)
+    createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues)
     plt.savefig(os.path.join(outputDir, f"Population at t={generation} Graph"))
     plt.close(fig)
 
@@ -160,10 +166,10 @@ def createAnimation(data):
 
     def update(frame):
         ax.clear()
-        generation, probCopAfterCopValues, probCopAfterDefValues = data[frame]
-        createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues)
+        generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues = data[frame]
+        createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues)
 
-    ani = FuncAnimation(fig, update, frames=len(data), interval=500)
+    ani = FuncAnimation(fig, update, frames=len(data), interval=50)
     ani.save(os.path.join(outputDir, "Population Animation.gif"), writer="pillow")
 
 
@@ -190,10 +196,11 @@ for line in iter(process.stdout.readline, ""):
         line = line.replace("[GRAPH 1]", "")
         values = list(filter(lambda x: x.strip(), line.split(",")))
         generation = values[0]
-        probCopAfterCopValues = [float(values[i].strip()) for i in range(1, len(values), 2)]
-        probCopAfterDefValues = [float(values[i].strip()) for i in range(2, len(values), 2)]
-        #createPopulationGraph(generation, probCopAfterCopValues, probCopAfterDefValues)
-        allData.append((generation, probCopAfterCopValues, probCopAfterDefValues))
+        probCopAfterCopValues = [float(values[i].strip()) for i in range(1, len(values), 3)]
+        probCopAfterDefValues = [float(values[i].strip()) for i in range(2, len(values), 3)]
+        frequencyValues = [float(values[i].strip()) for i in range(3, len(values), 3)]
+        #createPopulationGraph(generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues)
+        allData.append((generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues))
         continue
 
     if "[GRAPH 2]" in line:
@@ -202,6 +209,10 @@ for line in iter(process.stdout.readline, ""):
         probCopAfterCopValues = [float(values[i].strip()) for i in range(0, len(values), 2)]
         probCopAfterDefValues = [float(values[i].strip()) for i in range(1, len(values), 2)]
         createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues)
+        continue
+
+    else:
+        print("[MISC] " + line)
         continue
 
 

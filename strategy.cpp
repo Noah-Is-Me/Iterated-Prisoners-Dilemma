@@ -11,6 +11,15 @@ void Strategy::setup(double probCopAfterCop, double probCopAfterDef, double prob
     this->averagePayoff = 0;
 }
 
+void Strategy::setup(double probCopAfterCop, double probCopAfterDef, double probCopFirst)
+{
+    this->probCopAfterCop = probCopAfterCop;
+    this->probCopAfterDef = probCopAfterDef;
+    this->probCopFirst = probCopFirst;
+    this->points = 0;
+    this->averagePayoff = 0;
+}
+
 Move Strategy::getNextMove(Move opponentMove) const
 {
     double probCop = opponentMove == cooperate ? this->probCopAfterCop : this->probCopAfterDef;

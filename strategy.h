@@ -22,6 +22,7 @@ public:
     double frequency;
 
     void setup(double probCopAfterCop, double probCopAfterDef, double probCopFirst, double frequency);
+    void setup(double probCopAfterCop, double probCopAfterDef, double probCopFirst);
     Move getNextMove(Move opponentMove) const;
     Move getFirstMove() const;
     void addPoints(int value);
