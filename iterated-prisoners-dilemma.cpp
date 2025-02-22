@@ -5,11 +5,13 @@
 #include <unordered_map>
 #include <chrono>
 #include <thread>
+#include <cmath>
 
 #include "strategy.h"
 
 void joinThreads(std::vector<std::thread> &threads)
 {
+    // std::cout << "Joining threads..." << std::endl;
     for (std::thread &t : threads)
     {
         t.join();
@@ -78,7 +80,7 @@ void runMatchup(Strategy &s1, Strategy &s2, double miscommunicationRate, double 
 }
 
 template <std::size_t N1>
-void runRoundRobin(int generation, std::array<Strategy *, N1> &strategies, double miscommunicationRate, double misexecutionRate, int iterationCount, bool parallelProcessMatchups, int maxMatchupThreads, bool giveGenerationUpdates)
+void runRoundRobin(int generation, std::array<Strategy, N1> &strategies, double miscommunicationRate, double misexecutionRate, int iterationCount, bool parallelProcessMatchups, int maxMatchupThreads, bool giveGenerationUpdates)
 {
     auto roundStart = std::chrono::high_resolution_clock::now();
 
@@ -88,12 +90,12 @@ void runRoundRobin(int generation, std::array<Strategy *, N1> &strategies, doubl
     {
         for (int j = i + 1; j < strategies.size(); j++)
         {
-            Strategy &s1 = *strategies[i];
-            Strategy &s2 = *strategies[j];
+            Strategy &s1 = strategies[i];
+            Strategy &s2 = strategies[j];
 
             if (parallelProcessMatchups)
             {
-                if (threads.size() >= maxMatchupThreads)
+                if (threads.size() >= maxMatchupThreads / 2)
                 {
                     joinThreads(threads);
                 }
@@ -102,6 +104,7 @@ void runRoundRobin(int generation, std::array<Strategy *, N1> &strategies, doubl
             }
             else
             {
+                // std::cout << "threads not running" << std::endl;
                 runMatchup(s1, s2, miscommunicationRate, misexecutionRate, iterationCount);
             }
         }
@@ -122,7 +125,7 @@ void runRoundRobin(int generation, std::array<Strategy *, N1> &strategies, doubl
 }
 
 template <std::size_t N1>
-GenerationData getGenerationData(/*const std::array<Strategy *, N1> &strategies*/ const std::array<Strategy, N1> &strategiesSchematic)
+GenerationData getGenerationData(const std::array<Strategy, N1> &strategies)
 {
     /*
     double averageProbCopAfterCop = 0;
@@ -145,14 +148,15 @@ GenerationData getGenerationData(/*const std::array<Strategy *, N1> &strategies*
 
     double averageProbCopAfterCop = 0;
     double averageProbCopAfterDef = 0;
-    // double totalFrequency = 0;
 
-    for (const Strategy &strategy : strategiesSchematic)
+    for (const Strategy &strategy : strategies)
     {
-        averageProbCopAfterCop += strategy.probCopAfterCop * strategy.frequency;
-        averageProbCopAfterDef += strategy.probCopAfterDef * strategy.frequency;
-        // totalFrequency += strategy.frequency;
+        averageProbCopAfterCop += strategy.probCopAfterCop;
+        averageProbCopAfterDef += strategy.probCopAfterDef;
     }
+
+    averageProbCopAfterCop /= N1;
+    averageProbCopAfterDef /= N1;
 
     // std::cout << averageProbCopAfterCop << ", " << averageProbCopAfterDef << ", " << totalFrequency << std::endl;
 
@@ -160,7 +164,7 @@ GenerationData getGenerationData(/*const std::array<Strategy *, N1> &strategies*
 }
 
 template <std::size_t N1>
-void outputPopulationData(int generation, /*const std::array<Strategy *, N1> &strategies*/ const std::array<Strategy, N1> &strategiesSchematic)
+void outputSingleGenerationData(int generation, const std::array<Strategy, N1> &strategies)
 {
     /*
     std::string fullData = "[GRAPH 1]" + std::to_string(generation) + ",";
@@ -176,77 +180,70 @@ void outputPopulationData(int generation, /*const std::array<Strategy *, N1> &st
 
     std::string fullData = "[GRAPH 1]" + std::to_string(generation) + ",";
 
-    for (const Strategy &strategy : strategiesSchematic)
+    for (const Strategy &strategy : strategies)
     {
-        fullData += std::to_string(strategy.probCopAfterCop) + ", " + std::to_string(strategy.probCopAfterDef) + "," + std::to_string(strategy.frequency) + ",";
+        fullData += std::to_string(strategy.probCopAfterCop) + ", " + std::to_string(strategy.probCopAfterDef) + ",";
     }
 
     std::cout << fullData << std::endl;
 }
 
-template <std::size_t N1, std::size_t N2>
-void copyStrategiesFromSchematic(std::array<Strategy, N1> &strategiesSchematic, std::array<Strategy *, N2> &strategies)
+template <std::size_t N1>
+void generateOffspring(std::array<Strategy, N1> &strategies, double mutationStddev)
 {
-    int currentOffspring = 0;
-
-    for (Strategy &strategy : strategiesSchematic)
-    {
-        int offspringCount = strategy.frequency * N2;
-
-        for (int i = 0; i < offspringCount; i++)
-        {
-            if (currentOffspring < N2)
-                strategies[currentOffspring++] = &strategy;
-            else // offspring array is full
-                return;
-        }
-    }
-
-    // randomly create offspring if offspring array has empty spaces (due to roundoff error)
-    while (currentOffspring < N2)
-    {
-        // std::cout << currentOffspring << std ::endl;
-        Strategy &randomStrategy = strategiesSchematic[randomInt(0, N1)];
-        strategies[currentOffspring++] = &randomStrategy;
-    }
-}
-
-template <std::size_t N1, std::size_t N2>
-void generateOffspring(std::array<Strategy, N1> &strategiesSchematic, std::array<Strategy *, N2> &strategies)
-{
-    // double totalAveragePayoff = 0;
     int totalPoints = 0;
-    for (const Strategy &strategy : strategiesSchematic)
+    for (const Strategy &strategy : strategies)
     {
         totalPoints += strategy.points;
-        // totalAveragePayoff += strategy.averagePayoff;
     }
 
-    for (Strategy &strategy : strategiesSchematic)
-    {
-        // double newFrequency = strategy.frequency / (N1 - 1) * strategy.averagePayoff / totalAveragePayoff;
-        // double newFrequency = strategy.averagePayoff / totalAveragePayoff;
-        // strategy.frequency = newFrequency;
-        double newFrequency = 1.0 * strategy.points / totalPoints;
-        strategy.frequency = newFrequency;
-        strategy.points = 0;
+    std::array<Strategy, N1> offspring;
+    int currentOffspring = 0;
 
-        // int offspringCount = newFrequency * N2;
-        //  int offspringCount = (1.0 * strategy.points / totalPoints) * N2;
+    for (const Strategy &strategy : strategies)
+    {
+        double newFrequency = 1.0 * strategy.points / totalPoints;
+        // std::cout << newFrequency << std::endl;
+
+        // int offspringCount = std::round(newFrequency * N1);
+        int offspringCount = newFrequency * N1;
 
         // std::cout << offspringCount << ", " << newFrequency << std::endl;
-        /*
+
         for (int i = 0; i < offspringCount; i++)
         {
-            if (currentOffspring < N2)
-                strategies[currentOffspring++] = &strategy;
-            else // offspring array is full
+            if (currentOffspring < N1)
+            {
+                double newProbcopAfterCop = clamp01(normalDist(strategy.probCopAfterCop, mutationStddev));
+                double newProbCopAfterDef = clamp01(normalDist(strategy.probCopAfterDef, mutationStddev));
+                double newProbCopFirst = clamp01(normalDist(strategy.probCopFirst, mutationStddev));
+                offspring[currentOffspring++].setup(newProbcopAfterCop, newProbCopAfterDef, newProbCopFirst);
+            }
+            else
+            { // offspring array is full
+                // std::cerr << "ERROR: too many offspring!" << std::endl;
+                strategies = std::move(offspring);
                 return;
+            }
         }
-        */
     }
 
-    copyStrategiesFromSchematic(strategiesSchematic, strategies);
+    // std::cout << "Count before extra: " << currentOffspring << std ::endl;
+
+    // randomly create offspring if offspring array has empty spaces (due to roundoff error)
+    while (currentOffspring < N1)
+    {
+        // std::cout << "EXTRA: " << currentOffspring << std ::endl;
+        Strategy &randomStrategy = strategies[randomInt(0, N1)];
+        double newProbcopAfterCop = clamp01(normalDist(randomStrategy.probCopAfterCop, mutationStddev));
+        double newProbCopAfterDef = clamp01(normalDist(randomStrategy.probCopAfterDef, mutationStddev));
+        double newProbCopFirst = clamp01(normalDist(randomStrategy.probCopFirst, mutationStddev));
+        offspring[currentOffspring++].setup(newProbcopAfterCop, newProbCopAfterDef, newProbCopFirst);
+    }
+
+    strategies = std::move(offspring);
+
+    // TODO: Implement mutations
 }
 
 template <std::size_t N1>
@@ -291,7 +288,6 @@ int main()
     auto totalStart = std::chrono::high_resolution_clock::now();
 
     const int cores = std::thread::hardware_concurrency();
-
     const int maxMatchupThreads = cores;
     const bool parallelProcessMatchups = false;
     // TODO: parallel process is slowing down the program for some reason
@@ -303,6 +299,8 @@ int main()
 
     const double miscommunicationRateIncrement = 0.01;
     const double misexecutionRateIncrement = 0.00;
+
+    const double mutationStddev = 0.05;
 
     const int totalGenerations = 100;
     const int iterationCount = 30;
@@ -333,19 +331,17 @@ int main()
 
     std::array<GenerationData, totalGenerations> generationData;
 
-    std::array<Strategy, strategyTypeCount> strategiesSchematic;
-    std::array<Strategy *, strategyCount> strategies;
+    std::array<Strategy, strategyCount> strategies;
 
-    for (int i = 0; i < strategiesSchematic.size(); i++)
+    for (int i = 0; i < strategies.size(); i++)
     {
         double probCopAfterCop = randomDouble();
         double probCopAfterDef = randomDouble();
         double probCopFirst = randomDouble();
-        strategiesSchematic[i].setup(probCopAfterCop, probCopAfterDef, probCopFirst, 1.0 / strategyTypeCount);
+        strategies[i].setup(probCopAfterCop, probCopAfterDef, probCopFirst);
     }
 
-    strategiesSchematic[0].setup(1.0, 0.0, 1.0, 1.0 / strategyTypeCount);
-
+    strategies[0].setup(1.0, 0.0, 1.0);
 
     // for (int i = 0; i < strategyTypeCount; i++)
     // {
@@ -360,14 +356,13 @@ int main()
     // {
     //     strategiesSchematic[i].setup(1.0, 0.0, 1.00, 1.0 / strategyCount);
     // }
-    copyStrategiesFromSchematic(strategiesSchematic, strategies);
 
-    generationData[0] = getGenerationData(strategiesSchematic);
-    outputPopulationData(0, strategiesSchematic);
+    generationData[0] = getGenerationData(strategies);
+    // outputSingleGenerationData(0, strategies);
     for (int generation = 1; generation <= totalGenerations; generation++)
     {
         runRoundRobin(generation, strategies, miscommunicationRate, misexecutionRate, iterationCount, parallelProcessMatchups, maxMatchupThreads, giveGenerationUpdates);
-        generateOffspring(strategiesSchematic, strategies);
+        generateOffspring(strategies, mutationStddev);
 
         // if (true || generation % 5 == 0)
         // {
@@ -377,7 +372,7 @@ int main()
         //     }
         // }
 
-            // if (generation % 5 == 0)
+        // if (generation % 5 == 0)
         // {
         //     for (int i = 0; i < 10; i++)
         //     {
@@ -392,13 +387,13 @@ int main()
 
         if (generation % frameFrequency == 0)
         {
-            outputPopulationData(generation, strategiesSchematic);
+            outputSingleGenerationData(generation, strategies);
         }
 
-        generationData[generation] = getGenerationData(strategiesSchematic);
+        generationData[generation] = getGenerationData(strategies);
     }
 
-    outputPopulationData(totalGenerations, strategiesSchematic);
+    outputSingleGenerationData(totalGenerations, strategies);
     outputData(generationData);
 
     // TODO: find out why this stopwatch is cooked

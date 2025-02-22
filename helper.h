@@ -11,6 +11,10 @@ double randomDouble();
 
 int randomInt(int startIncluding, int endExcluding);
 
+double normalDist(double mean, double stddev);
+
+double clamp01(double n);
+
 enum Move
 {
     cooperate,

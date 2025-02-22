@@ -152,12 +152,12 @@ def createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues, fre
     ax.bar3d(probCopAfterDefValues, probCopAfterCopValues, np.zeros_like(height), 0.01, 0.01, height, shade=True)
 
 
-def createPopulationGraph(generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues):
-    fig = plt.figure(figsize=(figureWidth, figureHeight))
-    ax = fig.add_subplot(111, projection="3d")
-    createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues)
-    plt.savefig(os.path.join(outputDir, f"Population at t={generation} Graph"))
-    plt.close(fig)
+# def createSingleGenerationGraph(generation, probCopAfterCopValues, probCopAfterDefValues):
+#     fig = plt.figure(figsize=(figureWidth, figureHeight))
+#     ax = fig.add_subplot(111, projection="3d")
+#     createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues)
+#     plt.savefig(os.path.join(outputDir, f"Population at t={generation} Graph"))
+#     plt.close(fig)
 
 
 def createAnimation(data):
@@ -166,7 +166,8 @@ def createAnimation(data):
 
     def update(frame):
         ax.clear()
-        generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues = data[frame]
+        generation, probCopAfterCopValues, probCopAfterDefValues = data[frame]
+        frequencyValues = [1 for n in range(0,len(probCopAfterCopValues))]
         createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues)
 
     ani = FuncAnimation(fig, update, frames=len(data), interval=50)
@@ -196,11 +197,10 @@ for line in iter(process.stdout.readline, ""):
         line = line.replace("[GRAPH 1]", "")
         values = list(filter(lambda x: x.strip(), line.split(",")))
         generation = values[0]
-        probCopAfterCopValues = [float(values[i].strip()) for i in range(1, len(values), 3)]
-        probCopAfterDefValues = [float(values[i].strip()) for i in range(2, len(values), 3)]
-        frequencyValues = [float(values[i].strip()) for i in range(3, len(values), 3)]
-        #createPopulationGraph(generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues)
-        allData.append((generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues))
+        probCopAfterCopValues = [float(values[i].strip()) for i in range(1, len(values), 2)]
+        probCopAfterDefValues = [float(values[i].strip()) for i in range(2, len(values), 2)]
+        #createSingleGenerationGraph(generation, probCopAfterCopValues, probCopAfterDefValues)
+        allData.append((generation, probCopAfterCopValues, probCopAfterDefValues))
         continue
 
     if "[GRAPH 2]" in line:

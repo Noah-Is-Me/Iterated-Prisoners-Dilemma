@@ -2,6 +2,7 @@
 #include <random>
 #include <stdio.h>
 #include <iostream>
+#include <algorithm>
 
 // static thread_local std::mt19937 gen(std::random_device{}());
 // static thread_local std::uniform_real_distribution<> dis(0.0, 1.0);
@@ -31,6 +32,17 @@ int randomInt(int startIncluding, int endExcluding)
 {
     std::uniform_int_distribution<> dist(startIncluding, endExcluding - 1);
     return dist(gen);
+}
+
+double normalDist(double mean, double stddev)
+{
+    std::normal_distribution<double> dist(mean, stddev);
+    return dist(gen);
+}
+
+double clamp01(double n)
+{
+    return std::clamp(n, 0.0, 1.0);
 }
 
 const int pointMatrix[2][2] = {
