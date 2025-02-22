@@ -344,6 +344,9 @@ int main()
         strategiesSchematic[i].setup(probCopAfterCop, probCopAfterDef, probCopFirst, 1.0 / strategyTypeCount);
     }
 
+    strategiesSchematic[0].setup(1.0, 0.0, 1.0, 1.0 / strategyTypeCount);
+
+
     // for (int i = 0; i < strategyTypeCount; i++)
     // {
     //     int n = i % (strategyCount / strategyTypeCount);
@@ -372,6 +375,19 @@ int main()
         //     {
         //         strategiesSchematic[i].setup(1.0, 0.00, 1.00);
         //     }
+        // }
+
+            // if (generation % 5 == 0)
+        // {
+        //     for (int i = 0; i < 10; i++)
+        //     {
+        //         strategies[randomInt(0, strategyCount)] = &strategiesSchematic[0];
+        //     }
+        // }
+
+        // for (int i = 0; 10 < 1; i++)
+        // {
+        //     strategies[randomInt(0, strategyCount)] = &strategiesSchematic[randomInt(0,strategyTypeCount)];
         // }
 
         if (generation % frameFrequency == 0)
