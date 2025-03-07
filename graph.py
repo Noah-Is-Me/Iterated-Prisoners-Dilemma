@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+#from mpl_toolkits.mplot3d import Axes3D
 import subprocess
 import numpy as np
 import os
@@ -88,9 +88,11 @@ except subprocess.CalledProcessError as e:
 commitFolderDir = os.path.join(workspaceDir, latestCommit)
 os.makedirs(commitFolderDir, exist_ok=True)
 
-currentTime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-outputDir = os.path.join(commitFolderDir, currentTime)
-os.makedirs(outputDir, exist_ok=True)
+def getOutputDir():
+    currentTime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    outputDir = os.path.join(commitFolderDir, currentTime)
+    os.makedirs(outputDir, exist_ok=True)
+    return outputDir
 
 
 
@@ -103,7 +105,7 @@ def normalizeData(data):
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
 
-def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopAfterDefValues):
+def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopAfterDefValues, outputDir):
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
     ax.set_title("Average Strategy v. Time")
@@ -124,33 +126,19 @@ def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopA
     plt.close(fig)
 
 
-def createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues):
+def createPopulationSnapshot(ax: plt.Axes, generation, probCopAfterCopValues, probCopAfterDefValues):
     ax.set_title("Population at t=" + generation)
-    ax.set_xlabel("Probability Cop after Def")
-    ax.set_ylabel("Probability Cop after Cop")
-    ax.set_zlabel("Frequency")
+    ax.set_xlabel("Probability Cop after Cop")
+    ax.set_ylabel("Probability Cop after Def")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    ax.set_zlim(0, 1)
     ax.grid(True)
-    ax.invert_xaxis()
 
-    #strategyCount = len(probCopAfterCopValues)
-    # pairCount = Counter(zip(probCopAfterCopValues, probCopAfterDefValues))
-    # probCopAfterCopValues = []
-    # probCopAfterDefValues = []
-    # frequencyValues = []
-    # for (probCopAfterCop, probCopAfterDef), count in pairCount.items():
-    #     probCopAfterCopValues.append(probCopAfterCop)
-    #     probCopAfterDefValues.append(probCopAfterDef)
-    #     frequencyValues.append(count)
-    #height = [count / strategyCount for count in frequencyValues]
-
-    #height = normalizeData(frequencyValues)
-    height = frequencyValues
+    #ax.legend(loc="upper right")
+    #ax.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
+    #plt.tight_layout()
     
-    ax.bar3d(probCopAfterDefValues, probCopAfterCopValues, np.zeros_like(height), 0.01, 0.01, height, shade=True)
-
+    ax.plot(probCopAfterCopValues, probCopAfterDefValues, marker="o", label="Probability Cop after Cop", linestyle="none")
 
 # def createSingleGenerationGraph(generation, probCopAfterCopValues, probCopAfterDefValues):
 #     fig = plt.figure(figsize=(figureWidth, figureHeight))
@@ -160,68 +148,75 @@ def createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues, fre
 #     plt.close(fig)
 
 
-def createAnimation(data):
-    fig = plt.figure(figsize=(figureWidth, figureHeight))
-    ax = fig.add_subplot(111, projection="3d")
+def createAnimation(data, outputDir):
+    fig, ax = plt.subplots()
+    fig.set_size_inches(figureWidth, figureHeight)
 
     def update(frame):
         ax.clear()
         generation, probCopAfterCopValues, probCopAfterDefValues = data[frame]
-        frequencyValues = [1 for n in range(0,len(probCopAfterCopValues))]
-        createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues, frequencyValues)
+        createPopulationSnapshot(ax, generation, probCopAfterCopValues, probCopAfterDefValues)
 
     ani = FuncAnimation(fig, update, frames=len(data), interval=50)
     ani.save(os.path.join(outputDir, "Population Animation.gif"), writer="pillow")
 
 
-allData = []
+def runIPD(miscommunicationRate, misexecutionRate, mutationStddev):
+    outputDir = getOutputDir()
 
-process = subprocess.Popen(
-    [os.path.join(os.getcwd(), exeFile)],
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    text=True,  # Ensures the output is already decoded as text
-    bufsize=1,  # Line-buffered output
-)
+    allData = []
 
-for line in iter(process.stdout.readline, ""):
-    line = line.strip()
-    if not line:  # Skip empty lines
-        continue
+    process = subprocess.Popen(
+        [os.path.join(os.getcwd(), exeFile), str(miscommunicationRate), str(misexecutionRate), str(mutationStddev)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,  # Ensures the output is already decoded as text
+        bufsize=1,  # Line-buffered output
+    )
 
-    if "[NOTICE]" in line:
-        print(line)
-        continue
+    for line in iter(process.stdout.readline, ""):
+        line = line.strip()
+        if not line:  # Skip empty lines
+            continue
 
-    if "[GRAPH 1]" in line:
-        line = line.replace("[GRAPH 1]", "")
-        values = list(filter(lambda x: x.strip(), line.split(",")))
-        generation = values[0]
-        probCopAfterCopValues = [float(values[i].strip()) for i in range(1, len(values), 2)]
-        probCopAfterDefValues = [float(values[i].strip()) for i in range(2, len(values), 2)]
-        #createSingleGenerationGraph(generation, probCopAfterCopValues, probCopAfterDefValues)
-        allData.append((generation, probCopAfterCopValues, probCopAfterDefValues))
-        continue
+        if "[NOTICE]" in line:
+            print(line)
+            continue
 
-    if "[GRAPH 2]" in line:
-        line = line.replace("[GRAPH 2]", "")
-        values = list(filter(lambda x: x.strip(), line.split(",")))
-        probCopAfterCopValues = [float(values[i].strip()) for i in range(0, len(values), 2)]
-        probCopAfterDefValues = [float(values[i].strip()) for i in range(1, len(values), 2)]
-        createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues)
-        continue
+        if "[GRAPH 1]" in line:
+            line = line.replace("[GRAPH 1]", "")
+            values = list(filter(lambda x: x.strip(), line.split(",")))
+            generation = values[0]
+            probCopAfterCopValues = [float(values[i].strip()) for i in range(1, len(values), 2)]
+            probCopAfterDefValues = [float(values[i].strip()) for i in range(2, len(values), 2)]
+            #createSingleGenerationGraph(generation, probCopAfterCopValues, probCopAfterDefValues)
+            allData.append((generation, probCopAfterCopValues, probCopAfterDefValues))
+            continue
 
-    else:
-        print("[MISC] " + line)
-        continue
+        if "[GRAPH 2]" in line:
+            line = line.replace("[GRAPH 2]", "")
+            values = list(filter(lambda x: x.strip(), line.split(",")))
+            probCopAfterCopValues = [float(values[i].strip()) for i in range(0, len(values), 2)]
+            probCopAfterDefValues = [float(values[i].strip()) for i in range(1, len(values), 2)]
+            createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues, outputDir)
+            continue
 
-
-process.stdout.close()
-process.wait()
-
-createAnimation(allData)
-print(f"Graphs succesfully saved in: {outputDir}")
+        else:
+            print("[MISC] " + line)
+            continue
 
 
+    process.stdout.close()
+    process.wait()
 
+    createAnimation(allData, outputDir)
+    print(f"Graphs succesfully saved in: {outputDir}")
+
+
+for i in range(0, 1):
+    miscommunicationRate = 0.0
+    misexecutionRate = 0.0
+    mutationStddev = 0.005
+    print(f"Running IPD with miscom={miscommunicationRate}, misex={misexecutionRate}, mutSD={mutationStddev}")
+    runIPD(miscommunicationRate, misexecutionRate, mutationStddev)
 

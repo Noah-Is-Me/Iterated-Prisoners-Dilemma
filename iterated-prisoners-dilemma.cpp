@@ -19,31 +19,17 @@ void joinThreads(std::vector<std::thread> &threads)
     threads.clear();
 }
 
-void runIteration(Strategy &s1, Strategy &s2, Move &s1Move, Move &s2Move, double miscommunicationRate, double misexecutionRate)
-{
-    Move s1Move_ = s1Move;
-    Move s2Move_ = s2Move;
-
-    // Move s1Move_ = getFail(s1Move, misexecutionRate);
-    // Move s2Move_ = getFail(s2Move, misexecutionRate);
-
-    // s1.addPoints(pointMatrix[s1Move_][s2Move_]);
-    // s2.addPoints(pointMatrix[s2Move_][s1Move_]);
-
-    s1Move = cooperate;
-    s2Move = cooperate;
-
-    // s1Move = s1.getNextMove(s2Move_);
-    // s2Move = s2.getNextMove(s1Move_);
-
-    // s1Move = s1.getNextMove(getFail(s2Move_, miscommunicationRate));
-    // s2Move = s2.getNextMove(getFail(s1Move_, miscommunicationRate));
-}
-
 void runMatchup(Strategy &s1, Strategy &s2, double miscommunicationRate, double misexecutionRate, int iterationCount)
 {
+    // auto matchupStart = std::chrono::high_resolution_clock::now();
+
     Move s1Move = s1.getFirstMove();
     Move s2Move = s2.getFirstMove();
+
+    // std::cout << "start: " << s1.points << ", " << s2.points << std::endl;
+
+    int s1Points = 0;
+    int s2Points = 0;
 
     /*
     const double q1 = s1.probCopAfterCop;
@@ -63,24 +49,49 @@ void runMatchup(Strategy &s1, Strategy &s2, double miscommunicationRate, double 
 
     for (int k = 0; k < iterationCount; k++)
     {
-        // runIteration(s1, s2, s1Move, s2Move, miscommunicationRate, misexecutionRate);
-
         Move s1Move_ = getFail(s1Move, misexecutionRate);
         Move s2Move_ = getFail(s2Move, misexecutionRate);
 
-        // s1.addPoints(pointMatrix[s1Move_][s2Move_]);
-        // s2.addPoints(pointMatrix[s2Move_][s1Move_]);
-
-        s1.points += pointMatrix[s1Move_][s2Move_];
-        s2.points += pointMatrix[s2Move_][s1Move_];
+        s1Points += pointMatrix[s1Move_][s2Move_];
+        s2Points += pointMatrix[s2Move_][s1Move_];
 
         s1Move = s1.getNextMove(getFail(s2Move_, miscommunicationRate));
         s2Move = s2.getNextMove(getFail(s1Move_, miscommunicationRate));
     }
+
+    s1.addPoints(s1Points);
+    s2.addPoints(s2Points);
+
+    // std::cout << "end: " << s1.points << ", " << s2.points << std::endl;
+
+    // s1.points += s1Points;
+    // s2.points += s2Points;
+
+    // auto matchupEnd = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double> matchDuration = matchupEnd - matchupStart;
+    // std::cout << "[NOTICE] Matchup complete, Time: " << matchDuration.count() << " seconds" << std::endl;
 }
 
 template <std::size_t N1>
-void runRoundRobin(int generation, std::array<Strategy, N1> &strategies, double miscommunicationRate, double misexecutionRate, int iterationCount, bool parallelProcessMatchups, int maxMatchupThreads, bool giveGenerationUpdates)
+void runLineup(int i, std::array<Strategy, N1> &strategies, double miscommunicationRate, double misexecutionRate, int iterationCount)
+{
+    // auto lineupStart = std::chrono::high_resolution_clock::now();
+
+    Strategy &s1 = strategies[i];
+
+    for (int j = i + 1; j < strategies.size(); j++)
+    {
+        Strategy &s2 = strategies[j];
+        runMatchup(s1, s2, miscommunicationRate, misexecutionRate, iterationCount);
+    }
+
+    // auto lineupEnd = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double> lineupDuration = lineupEnd - lineupStart;
+    // std::cout << "[NOTICE] Lineup complete, Time: " << lineupDuration.count() << " seconds" << std::endl;
+}
+
+template <std::size_t N1>
+void runRoundRobin(int generation, std::array<Strategy, N1> &strategies, double miscommunicationRate, double misexecutionRate, int iterationCount, bool parallelProcessLineups, int maxThreads, bool giveGenerationUpdates)
 {
     auto roundStart = std::chrono::high_resolution_clock::now();
 
@@ -88,29 +99,22 @@ void runRoundRobin(int generation, std::array<Strategy, N1> &strategies, double 
 
     for (int i = 0; i < strategies.size(); i++)
     {
-        for (int j = i + 1; j < strategies.size(); j++)
+        if (parallelProcessLineups)
         {
-            Strategy &s1 = strategies[i];
-            Strategy &s2 = strategies[j];
-
-            if (parallelProcessMatchups)
+            if (threads.size() >= maxThreads / 2)
             {
-                if (threads.size() >= maxMatchupThreads / 2)
-                {
-                    joinThreads(threads);
-                }
+                joinThreads(threads);
+            }
 
-                threads.push_back(std::thread(runMatchup, std::ref(s1), std::ref(s2), miscommunicationRate, misexecutionRate, iterationCount));
-            }
-            else
-            {
-                // std::cout << "threads not running" << std::endl;
-                runMatchup(s1, s2, miscommunicationRate, misexecutionRate, iterationCount);
-            }
+            threads.push_back(std::thread(runLineup<N1>, i, std::ref(strategies), miscommunicationRate, misexecutionRate, iterationCount));
+        }
+        else
+        {
+            runLineup(i, strategies, miscommunicationRate, miscommunicationRate, iterationCount);
         }
     }
 
-    if (parallelProcessMatchups)
+    if (parallelProcessLineups)
         joinThreads(threads);
 
     if (giveGenerationUpdates && generation % 5 == 0)
@@ -195,6 +199,7 @@ void generateOffspring(std::array<Strategy, N1> &strategies, double mutationStdd
     for (const Strategy &strategy : strategies)
     {
         totalPoints += strategy.points;
+        // std::cout << "[NOTICE] " << strategy.points << std::endl;
     }
 
     std::array<Strategy, N1> offspring;
@@ -283,54 +288,36 @@ void outputData(const std::array<GenerationData, N1> &generationData)
     */
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     auto totalStart = std::chrono::high_resolution_clock::now();
 
     const int cores = std::thread::hardware_concurrency();
-    const int maxMatchupThreads = cores;
-    const bool parallelProcessMatchups = false;
+    const int maxThreads = cores;
+    const bool parallelProcessLineups = true;
     // TODO: parallel process is slowing down the program for some reason
 
     const bool giveGenerationUpdates = true;
 
-    const double startingMiscommunicationRate = 0.00;
-    const double startingMisexecutionRate = 0.00;
+    double miscommunicationRate = 0;
+    double misexecutionRate = 0.0;
+    double mutationStddev = 0.005;
 
-    const double miscommunicationRateIncrement = 0.01;
-    const double misexecutionRateIncrement = 0.00;
+    if (argc > 1)
+    {
+        miscommunicationRate = std::atof(argv[1]);
+        misexecutionRate = std::atof(argv[2]);
+        mutationStddev = std::atof(argv[3]);
+    }
 
-    const double mutationStddev = 0.05;
+    const int totalGenerations = 500;
+    const int iterationCount = 100;
 
-    const int totalGenerations = 100;
-    const int iterationCount = 30;
-
-    const int strategyTypeCount = 100;
-    const int strategyCount = 300;
+    const int strategyCount = 100;
 
     const int frameFrequency = 1;
 
-    // TODO:
-    // const double startingMutationRate = 0.00;
-    // const mutationRateIncrement = 0.00;
-
-    // -----------------
-
-    // TODO: these rates should be constant over an entire simulation
-    /*
-    std::array<double, totalGenerations> miscommunicationRates;
-    std::array<double, totalGenerations> misexecutionRates;
-    for (int i = 0; i < totalGenerations; i++)
-    {
-        miscommunicationRates[i] = startingMiscommunicationRate + miscommunicationRateIncrement * i;
-        misexecutionRates[i] = startingMisexecutionRate + misexecutionRateIncrement * i;
-    }
-    */
-    double miscommunicationRate = 0.00;
-    double misexecutionRate = 0.00;
-
     std::array<GenerationData, totalGenerations> generationData;
-
     std::array<Strategy, strategyCount> strategies;
 
     for (int i = 0; i < strategies.size(); i++)
@@ -340,8 +327,6 @@ int main()
         double probCopFirst = randomDouble();
         strategies[i].setup(probCopAfterCop, probCopAfterDef, probCopFirst);
     }
-
-    strategies[0].setup(1.0, 0.0, 1.0);
 
     // for (int i = 0; i < strategyTypeCount; i++)
     // {
@@ -361,7 +346,7 @@ int main()
     // outputSingleGenerationData(0, strategies);
     for (int generation = 1; generation <= totalGenerations; generation++)
     {
-        runRoundRobin(generation, strategies, miscommunicationRate, misexecutionRate, iterationCount, parallelProcessMatchups, maxMatchupThreads, giveGenerationUpdates);
+        runRoundRobin(generation, strategies, miscommunicationRate, misexecutionRate, iterationCount, parallelProcessLineups, maxThreads, giveGenerationUpdates);
         generateOffspring(strategies, mutationStddev);
 
         // if (true || generation % 5 == 0)
