@@ -36,8 +36,10 @@
             "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
+                "-std=c++2a",
                 "-g",
                 "${file}",
+                "-pthread",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}",
                 "helper.cpp",

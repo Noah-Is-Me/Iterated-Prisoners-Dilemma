@@ -18,6 +18,7 @@ static std::uniform_real_distribution<> dis(0.0, 1.0);
 }
 */
 
+
 bool randomChance(double probability)
 {
     return dis(gen) < probability;

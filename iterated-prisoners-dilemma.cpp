@@ -5,9 +5,11 @@
 #include <unordered_map>
 #include <chrono>
 #include <thread>
+#include <pthread.h>
 #include <cmath>
 
 #include "strategy.h"
+
 
 void joinThreads(std::vector<std::thread> &threads)
 {
@@ -18,6 +20,7 @@ void joinThreads(std::vector<std::thread> &threads)
     }
     threads.clear();
 }
+
 
 void runMatchup(Strategy &s1, Strategy &s2, double miscommunicationRate, double misexecutionRate, int iterationCount)
 {
@@ -95,18 +98,21 @@ void runRoundRobin(int generation, std::array<Strategy, N1> &strategies, double 
 {
     auto roundStart = std::chrono::high_resolution_clock::now();
 
+
     std::vector<std::thread> threads;
 
     for (int i = 0; i < strategies.size(); i++)
     {
         if (parallelProcessLineups)
         {
+            
             if (threads.size() >= maxThreads / 2)
             {
                 joinThreads(threads);
             }
 
             threads.push_back(std::thread(runLineup<N1>, i, std::ref(strategies), miscommunicationRate, misexecutionRate, iterationCount));
+        
         }
         else
         {
@@ -294,7 +300,9 @@ int main(int argc, char *argv[])
 
     const int cores = std::thread::hardware_concurrency();
     const int maxThreads = cores;
-    const bool parallelProcessLineups = true;
+    std::cout << "[NOTICE] Cores: " << cores << std::endl;
+
+    const bool parallelProcessLineups = false;
     // TODO: parallel process is slowing down the program for some reason
 
     const bool giveGenerationUpdates = true;
@@ -310,7 +318,7 @@ int main(int argc, char *argv[])
         mutationStddev = std::atof(argv[3]);
     }
 
-    const int totalGenerations = 500;
+    const int totalGenerations = 200;
     const int iterationCount = 100;
 
     const int strategyCount = 100;
@@ -348,6 +356,8 @@ int main(int argc, char *argv[])
     {
         runRoundRobin(generation, strategies, miscommunicationRate, misexecutionRate, iterationCount, parallelProcessLineups, maxThreads, giveGenerationUpdates);
         generateOffspring(strategies, mutationStddev);
+        // if (generation==100)
+        //     strategies[0].setup(1, 0, 1);
 
         // if (true || generation % 5 == 0)
         // {

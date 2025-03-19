@@ -29,9 +29,9 @@ cppFile = "iterated-prisoners-dilemma.cpp"
 linkageFiles = ["helper.cpp", "strategy.cpp"]
 exeFile = "iterated-prisoners-dilemma.exe"
 
-gppPath = r"C:\msys64\ucrt64\bin\g++.exe"
-# gppPath = r"/usr/bin/g++"
-buildCommand = [gppPath, "-fdiagnostics-color=always", "-g", cppFile, *linkageFiles, "-o", exeFile]
+#gppPath = r"C:\msys64\ucrt64\bin\g++.exe"
+gppPath = r"/usr/bin/g++"
+buildCommand = [gppPath, "-fdiagnostics-color=always", "-std=c++2a", "-g", cppFile, "-pthread", *linkageFiles, "-o", exeFile]
 
 if not os.path.exists(gppPath):
     print(f"Error: g++ compiler not found at {gppPath}")
@@ -104,11 +104,25 @@ figureHeight = 4.80 * 1.5
 def normalizeData(data):
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
+def getStabalizationMoment(xValues, yValues):
+    slidingWindowSize = 20
+    stddevs = []
 
-def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopAfterDefValues, outputDir):
+    for i in range(len(xValues)):
+        endingX = i
+        startingX = max(endingX - slidingWindowSize, 0)
+        slidingWindowX = xValues[startingX:endingX+1]
+        slidingWindowY = [yValues[x] for x in slidingWindowX]
+        stddev = np.std(slidingWindowY)
+        stddevs.append(stddev)
+
+    return stddevs
+
+def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopAfterDefValues, parameters, outputDir):
+    stddevs = getStabalizationMoment(generationValues, probCopAfterCopValues)
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
-    ax.set_title("Average Strategy v. Time")
+    ax.set_title(f"Average Strategy v. Time\nmiscom={parameters[0]}, misex={parameters[1]}, mutSD={parameters[2]}")
 
     ax.set_xlabel("Generation")
     ax.set_xlim(0, len(generationValues))
@@ -117,7 +131,9 @@ def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopA
     ax.grid(True)
 
     ax.plot(generationValues, probCopAfterCopValues, marker=".", label="Probability Cop after Cop")
-    ax.plot(generationValues, probCopAfterDefValues, marker=".", label="Probability Cop after Def")
+    # ax.plot(generationValues, probCopAfterDefValues, marker=".", label="Probability Cop after Def")
+    stddevs = normalizeData(stddevs)
+    ax.plot(generationValues, stddevs, marker=".", label="Stabilization Stddev")
 
     ax.legend(loc="upper right")
     #ax.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
@@ -126,8 +142,8 @@ def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopA
     plt.close(fig)
 
 
-def createPopulationSnapshot(ax: plt.Axes, generation, probCopAfterCopValues, probCopAfterDefValues):
-    ax.set_title("Population at t=" + generation)
+def createPopulationSnapshot(ax: plt.Axes, generation, probCopAfterCopValues, probCopAfterDefValues, parameters):
+    ax.set_title(f"IPD with miscom={parameters[0]}, misex={parameters[1]}, mutSD={parameters[2]}\nPopulation at t=" + generation)
     ax.set_xlabel("Probability Cop after Cop")
     ax.set_ylabel("Probability Cop after Def")
     ax.set_xlim(0, 1)
@@ -148,14 +164,14 @@ def createPopulationSnapshot(ax: plt.Axes, generation, probCopAfterCopValues, pr
 #     plt.close(fig)
 
 
-def createAnimation(data, outputDir):
+def createAnimation(data, parameters, outputDir):
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
 
     def update(frame):
         ax.clear()
         generation, probCopAfterCopValues, probCopAfterDefValues = data[frame]
-        createPopulationSnapshot(ax, generation, probCopAfterCopValues, probCopAfterDefValues)
+        createPopulationSnapshot(ax, generation, probCopAfterCopValues, probCopAfterDefValues, parameters)
 
     ani = FuncAnimation(fig, update, frames=len(data), interval=50)
     ani.save(os.path.join(outputDir, "Population Animation.gif"), writer="pillow")
@@ -163,6 +179,7 @@ def createAnimation(data, outputDir):
 
 def runIPD(miscommunicationRate, misexecutionRate, mutationStddev):
     outputDir = getOutputDir()
+    parameters = (miscommunicationRate, misexecutionRate, mutationStddev)
 
     allData = []
 
@@ -198,7 +215,7 @@ def runIPD(miscommunicationRate, misexecutionRate, mutationStddev):
             values = list(filter(lambda x: x.strip(), line.split(",")))
             probCopAfterCopValues = [float(values[i].strip()) for i in range(0, len(values), 2)]
             probCopAfterDefValues = [float(values[i].strip()) for i in range(1, len(values), 2)]
-            createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues, outputDir)
+            createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues, parameters, outputDir)
             continue
 
         else:
@@ -209,12 +226,12 @@ def runIPD(miscommunicationRate, misexecutionRate, mutationStddev):
     process.stdout.close()
     process.wait()
 
-    createAnimation(allData, outputDir)
+    createAnimation(allData, parameters, outputDir)
     print(f"Graphs succesfully saved in: {outputDir}")
 
 
 for i in range(0, 1):
-    miscommunicationRate = 0.0
+    miscommunicationRate = 0.01*i
     misexecutionRate = 0.0
     mutationStddev = 0.005
     print(f"Running IPD with miscom={miscommunicationRate}, misex={misexecutionRate}, mutSD={mutationStddev}")
