@@ -6,10 +6,8 @@
 #include <chrono>
 #include <thread>
 #include <pthread.h>
-#include <cmath>
 
 #include "strategy.h"
-
 
 void joinThreads(std::vector<std::thread> &threads)
 {
@@ -20,7 +18,6 @@ void joinThreads(std::vector<std::thread> &threads)
     }
     threads.clear();
 }
-
 
 void runMatchup(Strategy &s1, Strategy &s2, double miscommunicationRate, double misexecutionRate, int iterationCount)
 {
@@ -98,21 +95,19 @@ void runRoundRobin(int generation, std::array<Strategy, N1> &strategies, double 
 {
     auto roundStart = std::chrono::high_resolution_clock::now();
 
-
     std::vector<std::thread> threads;
 
     for (int i = 0; i < strategies.size(); i++)
     {
         if (parallelProcessLineups)
         {
-            
+
             if (threads.size() >= maxThreads / 2)
             {
                 joinThreads(threads);
             }
 
             threads.push_back(std::thread(runLineup<N1>, i, std::ref(strategies), miscommunicationRate, misexecutionRate, iterationCount));
-        
         }
         else
         {
@@ -257,14 +252,15 @@ void generateOffspring(std::array<Strategy, N1> &strategies, double mutationStdd
     // TODO: Implement mutations
 }
 
-template <std::size_t N1>
-void outputData(const std::array<GenerationData, N1> &generationData)
+void outputData(const std::vector<GenerationData> &generationData, const std::vector<double> &stabilityValues)
 {
     std::string fullData = "[GRAPH 2]";
 
-    for (const GenerationData &data : generationData)
+    for (int i = 0; i < generationData.size(); i++)
     {
-        fullData += std::to_string(data.averageProbCopAfterCop) + ", " + std::to_string(data.averageProbCopAfterDef) + ",";
+        fullData += std::to_string(generationData[i].averageProbCopAfterCop) + ", " +
+                    std::to_string(generationData[i].averageProbCopAfterDef) + "," +
+                    std::to_string(stabilityValues[i]) + ",";
     }
 
     std::cout << fullData << std::endl;
@@ -294,6 +290,31 @@ void outputData(const std::array<GenerationData, N1> &generationData)
     */
 }
 
+double calculateStability(const std::vector<GenerationData> &generationData, int slidingWindowSize)
+{
+    const int totalValues = static_cast<int>(generationData.size());
+    if (totalValues < slidingWindowSize)
+        return 1;
+
+    std::vector<double> slidingWindowCAC;
+    std::vector<double> slidingWindowCAD;
+    slidingWindowCAC.reserve(slidingWindowSize);
+    slidingWindowCAD.reserve(slidingWindowSize);
+
+    int endingX = totalValues;
+    int startingX = std::max(endingX - slidingWindowSize, 0);
+    // std::vector<double> slidingWindow(yValues.begin() + startingX, yValues.begin() + endingX + 1);
+    for (int i = startingX; i < endingX; i++)
+    {
+        slidingWindowCAC.push_back(generationData[i].averageProbCopAfterCop);
+        slidingWindowCAD.push_back(generationData[i].averageProbCopAfterDef);
+    }
+    double stddevCAC = getStddev(slidingWindowCAC);
+    double stddevCAD = getStddev(slidingWindowCAD);
+
+    return std::max(stddevCAC, stddevCAD);
+}
+
 int main(int argc, char *argv[])
 {
     auto totalStart = std::chrono::high_resolution_clock::now();
@@ -302,30 +323,47 @@ int main(int argc, char *argv[])
     const int maxThreads = cores;
     std::cout << "[NOTICE] Cores: " << cores << std::endl;
 
-    const bool parallelProcessLineups = false;
-    // TODO: parallel process is slowing down the program for some reason
+    bool parallelProcessLineups = false;
+    /* Parallel process slows down speed because the matchup
+       lengths aren't long enough to justify thread creation */
 
     const bool giveGenerationUpdates = true;
 
     double miscommunicationRate = 0;
     double misexecutionRate = 0.0;
     double mutationStddev = 0.005;
+    int totalGenerations = 10;
+    int iterationCount = 100;
+    const int strategyCount = 50;
+    double stabilityThreshold = 0.005;
+    int slidingWindowSize = 10;
 
     if (argc > 1)
     {
         miscommunicationRate = std::atof(argv[1]);
         misexecutionRate = std::atof(argv[2]);
         mutationStddev = std::atof(argv[3]);
+        totalGenerations = std::atof(argv[4]);
+        iterationCount = std::atof(argv[5]);
+        // strategyCount = std::atof(argv[6]);
+        stabilityThreshold = std::atof(argv[7]);
+        slidingWindowSize = std::atof(argv[8]);
+        parallelProcessLineups = std::atof(argv[9]);
     }
 
-    const int totalGenerations = 200;
-    const int iterationCount = 100;
-
-    const int strategyCount = 100;
+    std::cout << "[NOTICE]\n"
+              << "miscommunicationRate: " << miscommunicationRate << "\n"
+              << "misexecutionRate: " << misexecutionRate << "\n"
+              << "mutationStddev: " << mutationStddev << "\n"
+              << "totalGenerations: " << totalGenerations << "\n"
+              << "iterationCount: " << iterationCount << "\n"
+              << "strategyCount: " << strategyCount << "\n"
+              << "parallelProcessLineups: " << parallelProcessLineups << std::endl;
 
     const int frameFrequency = 1;
 
-    std::array<GenerationData, totalGenerations> generationData;
+    std::vector<GenerationData> generationData;
+    std::vector<double> stabilityValues;
     std::array<Strategy, strategyCount> strategies;
 
     for (int i = 0; i < strategies.size(); i++)
@@ -350,7 +388,8 @@ int main(int argc, char *argv[])
     //     strategiesSchematic[i].setup(1.0, 0.0, 1.00, 1.0 / strategyCount);
     // }
 
-    generationData[0] = getGenerationData(strategies);
+    generationData.push_back(getGenerationData(strategies));
+    stabilityValues.push_back(calculateStability(generationData, slidingWindowSize));
     // outputSingleGenerationData(0, strategies);
     for (int generation = 1; generation <= totalGenerations; generation++)
     {
@@ -385,11 +424,19 @@ int main(int argc, char *argv[])
             outputSingleGenerationData(generation, strategies);
         }
 
-        generationData[generation] = getGenerationData(strategies);
+        generationData.push_back(getGenerationData(strategies));
+
+        double stability = calculateStability(generationData, slidingWindowSize);
+        stabilityValues.push_back(stability);
+        if (stability <= stabilityThreshold)
+        {
+            totalGenerations = generation;
+            std::cout << "[NOTICE] STABLE AT: generation=" << generation << std::endl;
+        }
     }
 
     outputSingleGenerationData(totalGenerations, strategies);
-    outputData(generationData);
+    outputData(generationData, stabilityValues);
 
     // TODO: find out why this stopwatch is cooked
     /*

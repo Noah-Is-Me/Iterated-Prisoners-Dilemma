@@ -1,6 +1,8 @@
 #ifndef HELPER_H
 #define HELPER_H
 
+#include <vector>
+
 // double randomDouble(double min, double max);
 
 // int randomInt(int min, int max);
@@ -38,5 +40,7 @@ struct GenerationData
     double averageProbCopAfterCop;
     double averageProbCopAfterDef;
 };
+
+double getStddev(const std::vector<double> &);
 
 #endif

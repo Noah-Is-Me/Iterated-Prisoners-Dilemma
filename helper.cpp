@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <algorithm>
+#include <cmath>
 
 // static thread_local std::mt19937 gen(std::random_device{}());
 // static thread_local std::uniform_real_distribution<> dis(0.0, 1.0);
@@ -17,7 +18,6 @@ static std::uniform_real_distribution<> dis(0.0, 1.0);
     return dis(gen) * (max - min) + min;
 }
 */
-
 
 bool randomChance(double probability)
 {
@@ -69,3 +69,23 @@ Move getFail(Move move, double failRate)
     return move;
 }
 */
+
+double getStddev(const std::vector<double> &values)
+{
+    int size = values.size();
+
+    double sum = 0.0;
+    for (int i = 0; i < size; ++i)
+    {
+        sum += values[i];
+    }
+    double mean = sum / size;
+
+    double standardDeviation = 0.0;
+    for (int i = 0; i < size; ++i)
+    {
+        standardDeviation += pow(values[i] - mean, 2);
+    }
+
+    return sqrt(standardDeviation / size);
+}

@@ -29,9 +29,11 @@ cppFile = "iterated-prisoners-dilemma.cpp"
 linkageFiles = ["helper.cpp", "strategy.cpp"]
 exeFile = "iterated-prisoners-dilemma.exe"
 
-#gppPath = r"C:\msys64\ucrt64\bin\g++.exe"
-gppPath = r"/usr/bin/g++"
-buildCommand = [gppPath, "-fdiagnostics-color=always", "-std=c++2a", "-g", cppFile, "-pthread", *linkageFiles, "-o", exeFile]
+# gppPath = r"/usr/bin/g++"
+# buildCommand = [gppPath, "-fdiagnostics-color=always", "-std=c++2a", "-g", cppFile, "-pthread", *linkageFiles, "-o", exeFile]
+
+gppPath = r"C:\msys64\ucrt64\bin\g++.exe"
+buildCommand = [gppPath, "-fdiagnostics-color=always", "-g", cppFile, *linkageFiles, "-o", exeFile]
 
 if not os.path.exists(gppPath):
     print(f"Error: g++ compiler not found at {gppPath}")
@@ -88,9 +90,16 @@ except subprocess.CalledProcessError as e:
 commitFolderDir = os.path.join(workspaceDir, latestCommit)
 os.makedirs(commitFolderDir, exist_ok=True)
 
-def getOutputDir():
+def getOutputDir(folder:str=None):
     currentTime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    outputDir = os.path.join(commitFolderDir, currentTime)
+
+    if (folder):
+        folderDir = os.path.join(commitFolderDir, folder)
+        os.makedirs(folderDir, exist_ok=True)
+        outputDir = os.path.join(folderDir, currentTime)
+    else:
+        outputDir = os.path.join(commitFolderDir, currentTime)
+
     os.makedirs(outputDir, exist_ok=True)
     return outputDir
 
@@ -101,39 +110,51 @@ figureHeight = 4.80 * 1.5
 
 # markers:  , . o x X none "" 
 
-def normalizeData(data):
+def normalizeData(data: list):
+    if not data: return
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
-def getStabalizationMoment(xValues, yValues):
-    slidingWindowSize = 20
+def getStabalizationMoment(yValues: list):
+    slidingWindowSize = min(10, len(yValues))
     stddevs = []
 
-    for i in range(len(xValues)):
+    #for i in range(slidingWindowSize-1, len(xValues)):
+    for i in range(len(yValues)):
+        if (i<slidingWindowSize): 
+            stddevs.append(1)
+            continue
+
         endingX = i
         startingX = max(endingX - slidingWindowSize, 0)
-        slidingWindowX = xValues[startingX:endingX+1]
-        slidingWindowY = [yValues[x] for x in slidingWindowX]
-        stddev = np.std(slidingWindowY)
+        slidingWindow = yValues[startingX:endingX+1]
+        stddev = np.std(slidingWindow)
         stddevs.append(stddev)
 
     return stddevs
 
-def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopAfterDefValues, parameters, outputDir):
-    stddevs = getStabalizationMoment(generationValues, probCopAfterCopValues)
+def getLastAverageValue(data: list, numberValues: int):
+    values = data[-numberValues:]
+    return np.mean(values)
+
+
+def createAverageStrategyGraph(generationValues: list, probCopAfterCopValues: list, probCopAfterDefValues: list, stabilityValues: list, graphParameters: tuple, outputDir: str, exeArguments: dict):
+    # stddevs = getStabalizationMoment(probCopAfterCopValues)
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
-    ax.set_title(f"Average Strategy v. Time\nmiscom={parameters[0]}, misex={parameters[1]}, mutSD={parameters[2]}")
+    ax.set_title(f"Average Strategy v. Time\nmiscom={graphParameters[0]}, misex={graphParameters[1]}, mutSD={graphParameters[2]}")
 
     ax.set_xlabel("Generation")
-    ax.set_xlim(0, len(generationValues))
+    ax.set_xlim(0, max(generationValues))
     ax.set_ylabel("Probability")
     ax.set_ylim(0,1)
     ax.grid(True)
 
     ax.plot(generationValues, probCopAfterCopValues, marker=".", label="Probability Cop after Cop")
-    # ax.plot(generationValues, probCopAfterDefValues, marker=".", label="Probability Cop after Def")
-    stddevs = normalizeData(stddevs)
-    ax.plot(generationValues, stddevs, marker=".", label="Stabilization Stddev")
+    ax.plot(generationValues, probCopAfterDefValues, marker=".", label="Probability Cop after Def")
+    # stddevs = normalizeData(stddevs)
+    # ax.plot(generationValues, stddevs, marker=".", label="Stabilization Stddev")
+    ax.plot(generationValues, stabilityValues, marker=".", label="Stability Values")
+    ax.axhline(exeArguments["stabilityThreshold"], color="red", linewidth=0.5)
 
     ax.legend(loc="upper right")
     #ax.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
@@ -142,8 +163,8 @@ def createAverageStrategyGraph(generationValues, probCopAfterCopValues, probCopA
     plt.close(fig)
 
 
-def createPopulationSnapshot(ax: plt.Axes, generation, probCopAfterCopValues, probCopAfterDefValues, parameters):
-    ax.set_title(f"IPD with miscom={parameters[0]}, misex={parameters[1]}, mutSD={parameters[2]}\nPopulation at t=" + generation)
+def createPopulationSnapshot(ax: plt.Axes, generation: int, probCopAfterCopValues: list, probCopAfterDefValues: list, graphParameters: tuple):
+    ax.set_title(f"IPD with miscom={graphParameters[0]}, misex={graphParameters[1]}, mutSD={graphParameters[2]}\nPopulation at t=" + generation)
     ax.set_xlabel("Probability Cop after Cop")
     ax.set_ylabel("Probability Cop after Def")
     ax.set_xlim(0, 1)
@@ -164,27 +185,52 @@ def createPopulationSnapshot(ax: plt.Axes, generation, probCopAfterCopValues, pr
 #     plt.close(fig)
 
 
-def createAnimation(data, parameters, outputDir):
+def createAnimation(data: list, graphParameters: tuple, outputDir: str):
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
 
     def update(frame):
         ax.clear()
         generation, probCopAfterCopValues, probCopAfterDefValues = data[frame]
-        createPopulationSnapshot(ax, generation, probCopAfterCopValues, probCopAfterDefValues, parameters)
+        createPopulationSnapshot(ax, generation, probCopAfterCopValues, probCopAfterDefValues, graphParameters)
 
     ani = FuncAnimation(fig, update, frames=len(data), interval=50)
     ani.save(os.path.join(outputDir, "Population Animation.gif"), writer="pillow")
 
 
-def runIPD(miscommunicationRate, misexecutionRate, mutationStddev):
-    outputDir = getOutputDir()
-    parameters = (miscommunicationRate, misexecutionRate, mutationStddev)
+def createFinalGraph(IVvalues: list, convergenceValues: list, outputDir: str):
+    fig, ax = plt.subplots()
+    fig.set_size_inches(figureWidth, figureHeight)
+    ax.set_title(f"I.V. vs Convergence (make this title better)")
+    # TODO: Make this title better and also dynamic
+
+    ax.set_xlabel("Miscommunication Rate")
+    ax.set_xlim(min(IVvalues), max(IVvalues))
+    ax.set_ylabel("Probability")
+    ax.set_ylim(0,1)
+    ax.grid(True)
+
+    probCopAfterCopValues = convergenceValues[::2]
+    probCopAfterDefValues = convergenceValues[1::2]
+
+    ax.plot(IVvalues, probCopAfterCopValues, marker=".", label="Probability Cop after Cop")
+    ax.plot(IVvalues, probCopAfterDefValues, marker=".", label="Probability Cop after Def")
+
+    ax.legend(loc="upper right")
+    #ax.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
+    #plt.tight_layout()
+    plt.savefig(os.path.join(outputDir, f"Final Graph.png"))
+    plt.close(fig)
+
+
+def runIPD(exeArguments: dict, folder: str, convergenceList: list):
+    outputDir = getOutputDir(folder)
+    graphParameters = (exeArguments["miscommunicationRate"], exeArguments["misexecutionRate"], exeArguments["mutationStddev"])
 
     allData = []
 
     process = subprocess.Popen(
-        [os.path.join(os.getcwd(), exeFile), str(miscommunicationRate), str(misexecutionRate), str(mutationStddev)],
+        [os.path.join(os.getcwd(), exeFile), *(str(argument) for argument in exeArguments.values())],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,  # Ensures the output is already decoded as text
@@ -213,27 +259,46 @@ def runIPD(miscommunicationRate, misexecutionRate, mutationStddev):
         if "[GRAPH 2]" in line:
             line = line.replace("[GRAPH 2]", "")
             values = list(filter(lambda x: x.strip(), line.split(",")))
-            probCopAfterCopValues = [float(values[i].strip()) for i in range(0, len(values), 2)]
-            probCopAfterDefValues = [float(values[i].strip()) for i in range(1, len(values), 2)]
-            createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues, parameters, outputDir)
+            probCopAfterCopValues = [float(values[i].strip()) for i in range(0, len(values), 3)]
+            probCopAfterDefValues = [float(values[i].strip()) for i in range(1, len(values), 3)]
+            stabilityValues = [float(values[i].strip()) for i in range(2, len(values), 3)]
+            createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues, stabilityValues, graphParameters, outputDir, exeArguments)
             continue
 
         else:
             print("[MISC] " + line)
             continue
 
-
+    convergenceList.append(getLastAverageValue(probCopAfterCopValues, exeArguments["slidingWindowSize"]))
+    convergenceList.append(getLastAverageValue(probCopAfterDefValues, exeArguments["slidingWindowSize"]))
     process.stdout.close()
     process.wait()
 
-    createAnimation(allData, parameters, outputDir)
+    createAnimation(allData, graphParameters, outputDir)
     print(f"Graphs succesfully saved in: {outputDir}")
 
 
-for i in range(0, 1):
-    miscommunicationRate = 0.01*i
-    misexecutionRate = 0.0
-    mutationStddev = 0.005
-    print(f"Running IPD with miscom={miscommunicationRate}, misex={misexecutionRate}, mutSD={mutationStddev}")
-    runIPD(miscommunicationRate, misexecutionRate, mutationStddev)
+IVvalues = []
+convergenceValues = []
 
+for i in range(0, 10):
+    exeArguments = {
+        "miscommunicationRate": 0.01*i,
+        "misexecutionRate": 0.0,
+        "mutationStddev": 0.005,
+        "generations": 100,
+        "matchupIterations": 100,
+        "populationSize": 100, # doesn't work
+        "stabilityThreshold": 0.01, # 0.005
+        "slidingWindowSize": 20,
+        "parallelProcess": False
+    }
+    folder = "Stability Test 4"
+
+    IVvalues = [.01*i for i in range(0,10)] 
+    # TODO: find a way to automate this?
+
+    print(f"Running IPD with miscom={exeArguments["miscommunicationRate"]}, misex={exeArguments["misexecutionRate"]}, mutSD={exeArguments["mutationStddev"]}")
+    runIPD(exeArguments, folder, convergenceValues)
+
+createFinalGraph(IVvalues, convergenceValues, getOutputDir(folder))

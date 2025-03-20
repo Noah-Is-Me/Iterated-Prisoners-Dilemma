@@ -67,7 +67,8 @@
         "sstream": "cpp",
         "thread": "cpp",
         "stop_token": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "numeric": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++20",
 }
