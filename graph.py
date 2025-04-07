@@ -137,11 +137,11 @@ def getLastAverageValue(data: list, numberValues: int):
     return np.mean(values)
 
 
-def createAverageStrategyGraph(generationValues: list, probCopAfterCopValues: list, probCopAfterDefValues: list, stabilityValues: list, graphParameters: tuple, outputDir: str, exeArguments: dict):
+def createAverageStrategyGraph(generationValues: list, probCopAfterCopValues: list, probCopAfterDefValues: list, stabilityValues: list, outputDir: str, exeArguments: dict):
     # stddevs = getStabalizationMoment(probCopAfterCopValues)
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
-    ax.set_title(f"Average Strategy v. Time\nmiscom={graphParameters[0]}, misex={graphParameters[1]}, mutSD={graphParameters[2]}")
+    ax.set_title(f"Average Strategy v. Time\n{str(exeArguments)}")
 
     ax.set_xlabel("Generation")
     ax.set_xlim(0, max(generationValues))
@@ -163,8 +163,8 @@ def createAverageStrategyGraph(generationValues: list, probCopAfterCopValues: li
     plt.close(fig)
 
 
-def createPopulationSnapshot(ax: plt.Axes, generation: int, probCopAfterCopValues: list, probCopAfterDefValues: list, graphParameters: tuple):
-    ax.set_title(f"IPD with miscom={graphParameters[0]}, misex={graphParameters[1]}, mutSD={graphParameters[2]}\nPopulation at t=" + generation)
+def createPopulationSnapshot(ax: plt.Axes, generation: int, probCopAfterCopValues: list, probCopAfterDefValues: list, exeArguments: dict):
+    ax.set_title(f"IPD with {str(exeArguments)}\nPopulation at t=" + generation)
     ax.set_xlabel("Probability Cop after Cop")
     ax.set_ylabel("Probability Cop after Def")
     ax.set_xlim(0, 1)
@@ -185,23 +185,26 @@ def createPopulationSnapshot(ax: plt.Axes, generation: int, probCopAfterCopValue
 #     plt.close(fig)
 
 
-def createAnimation(data: list, graphParameters: tuple, outputDir: str):
+def createAnimation(data: list, exeArguments: dict, outputDir: str):
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
 
     def update(frame):
         ax.clear()
         generation, probCopAfterCopValues, probCopAfterDefValues = data[frame]
-        createPopulationSnapshot(ax, generation, probCopAfterCopValues, probCopAfterDefValues, graphParameters)
+        createPopulationSnapshot(ax, generation, probCopAfterCopValues, probCopAfterDefValues, exeArguments)
 
     ani = FuncAnimation(fig, update, frames=len(data), interval=50)
     ani.save(os.path.join(outputDir, "Population Animation.gif"), writer="pillow")
 
 
-def createFinalGraph(IVvalues: list, convergenceValues: list, outputDir: str):
+def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, outputDir: str):
+    IVname = IV[0]
+    IVvalues = IV[1]
+
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
-    ax.set_title(f"I.V. vs Convergence (make this title better)")
+    ax.set_title(f"{IVname} vs Population Convergence\n{str(exeArguments)}")
     # TODO: Make this title better and also dynamic
 
     ax.set_xlabel("Miscommunication Rate")
@@ -225,7 +228,6 @@ def createFinalGraph(IVvalues: list, convergenceValues: list, outputDir: str):
 
 def runIPD(exeArguments: dict, folder: str, convergenceList: list):
     outputDir = getOutputDir(folder)
-    graphParameters = (exeArguments["miscommunicationRate"], exeArguments["misexecutionRate"], exeArguments["mutationStddev"])
 
     allData = []
 
@@ -262,7 +264,7 @@ def runIPD(exeArguments: dict, folder: str, convergenceList: list):
             probCopAfterCopValues = [float(values[i].strip()) for i in range(0, len(values), 3)]
             probCopAfterDefValues = [float(values[i].strip()) for i in range(1, len(values), 3)]
             stabilityValues = [float(values[i].strip()) for i in range(2, len(values), 3)]
-            createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues, stabilityValues, graphParameters, outputDir, exeArguments)
+            createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues, stabilityValues, outputDir, exeArguments)
             continue
 
         else:
@@ -274,16 +276,16 @@ def runIPD(exeArguments: dict, folder: str, convergenceList: list):
     process.stdout.close()
     process.wait()
 
-    createAnimation(allData, graphParameters, outputDir)
+    createAnimation(allData, exeArguments, outputDir)
     print(f"Graphs succesfully saved in: {outputDir}")
 
 
-IVvalues = []
-convergenceValues = []
+IV = ("miscommunicationRate", [0.01 * i for i in range(0,10)])
+DVvalues = []
 
-for i in range(0, 10):
+for i in IV[1]:
     exeArguments = {
-        "miscommunicationRate": 0.01*i,
+        "miscommunicationRate": i,
         "misexecutionRate": 0.0,
         "mutationStddev": 0.005,
         "generations": 100,
@@ -293,12 +295,11 @@ for i in range(0, 10):
         "slidingWindowSize": 20,
         "parallelProcess": False
     }
-    folder = "Stability Test 4"
+    exeArguments[IV[0]] = i
 
-    IVvalues = [.01*i for i in range(0,10)] 
-    # TODO: find a way to automate this?
+    folder = "Label test"
 
-    print(f"Running IPD with miscom={exeArguments["miscommunicationRate"]}, misex={exeArguments["misexecutionRate"]}, mutSD={exeArguments["mutationStddev"]}")
-    runIPD(exeArguments, folder, convergenceValues)
+    print(f"Running IPD with", exeArguments)
+    runIPD(exeArguments, folder, DVvalues)
 
-createFinalGraph(IVvalues, convergenceValues, getOutputDir(folder))
+createFinalGraph(IV, DVvalues, exeArguments, getOutputDir(folder))
