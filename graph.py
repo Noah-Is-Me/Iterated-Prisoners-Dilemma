@@ -91,7 +91,6 @@ commitFolderDir = os.path.join(workspaceDir, latestCommit)
 os.makedirs(commitFolderDir, exist_ok=True)
 
 def getOutputDir(folder:str=None):
-    # currentTime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     # if (folder):
     #     folderDir = os.path.join(commitFolderDir, folder)
@@ -100,9 +99,21 @@ def getOutputDir(folder:str=None):
     # else:
     #     outputDir = os.path.join(commitFolderDir, currentTime)
 
+    if (folder):
+        outputDir = os.path.join(commitFolderDir, folder)
+    else:
+        currentTime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        outputDir = os.path.join(commitFolderDir, currentTime)
+    
+    print(outputDir)
 
-    outputDir = os.path.join(commitFolderDir, folder)
-    os.makedirs(outputDir, exist_ok=True)
+    try:
+        os.makedirs(outputDir, exist_ok=True)
+    except OSError as e:
+        print(f"Error creating directory: {outputDir}")
+        print(e)
+        raise  # Raise the exception to halt execution and see the error details
+
     return outputDir
 
 
