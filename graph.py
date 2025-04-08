@@ -90,7 +90,7 @@ except subprocess.CalledProcessError as e:
 commitFolderDir = os.path.join(workspaceDir, latestCommit)
 os.makedirs(commitFolderDir, exist_ok=True)
 
-def getOutputDir(folder:str=None):
+def getOutputDir(folder:str=None, fileName:str=None):
     currentTime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     if (folder):
@@ -137,11 +137,12 @@ def getLastAverageValue(data: list, numberValues: int):
     return np.mean(values)
 
 
-def createAverageStrategyGraph(generationValues: list, probCopAfterCopValues: list, probCopAfterDefValues: list, stabilityValues: list, outputDir: str, exeArguments: dict):
+def createAverageStrategyGraph(generationValues: list, probCopAfterCopValues: list, probCopAfterDefValues: list, stabilityValues: list, outputDir: str, exeArguments: dict, IVname:str):
     # stddevs = getStabalizationMoment(probCopAfterCopValues)
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
-    ax.set_title(f"Average Strategy v. Time\n{str(exeArguments)}")
+    ax.set_title(f"Average Strategy v. Time")
+    fig.text(0.01, 0.01, str(exeArguments))
 
     ax.set_xlabel("Generation")
     ax.set_xlim(0, max(generationValues))
@@ -159,12 +160,14 @@ def createAverageStrategyGraph(generationValues: list, probCopAfterCopValues: li
     ax.legend(loc="upper right")
     #ax.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
     #plt.tight_layout()
-    plt.savefig(os.path.join(outputDir, f"Strategy vs Time.png"))
+    plt.savefig(os.path.join(outputDir, f"Strategy vs Time at {IVname}={exeArguments[IVname]}.png"))
     plt.close(fig)
 
 
-def createPopulationSnapshot(ax: plt.Axes, generation: int, probCopAfterCopValues: list, probCopAfterDefValues: list, exeArguments: dict):
-    ax.set_title(f"IPD with {str(exeArguments)}\nPopulation at t=" + generation)
+def createPopulationSnapshot(fig: plt.Figure, ax: plt.Axes, generation: int, probCopAfterCopValues: list, probCopAfterDefValues: list, exeArguments: dict):
+    ax.set_title(f"Population at t=" + generation)
+    fig.text(0.01, 0.01, str(exeArguments))
+
     ax.set_xlabel("Probability Cop after Cop")
     ax.set_ylabel("Probability Cop after Def")
     ax.set_xlim(0, 1)
@@ -177,12 +180,6 @@ def createPopulationSnapshot(ax: plt.Axes, generation: int, probCopAfterCopValue
     
     ax.plot(probCopAfterCopValues, probCopAfterDefValues, marker="o", label="Probability Cop after Cop", linestyle="none")
 
-# def createSingleGenerationGraph(generation, probCopAfterCopValues, probCopAfterDefValues):
-#     fig = plt.figure(figsize=(figureWidth, figureHeight))
-#     ax = fig.add_subplot(111, projection="3d")
-#     createBars(ax, generation, probCopAfterCopValues, probCopAfterDefValues)
-#     plt.savefig(os.path.join(outputDir, f"Population at t={generation} Graph"))
-#     plt.close(fig)
 
 
 def createAnimation(data: list, exeArguments: dict, outputDir: str):
@@ -192,7 +189,7 @@ def createAnimation(data: list, exeArguments: dict, outputDir: str):
     def update(frame):
         ax.clear()
         generation, probCopAfterCopValues, probCopAfterDefValues = data[frame]
-        createPopulationSnapshot(ax, generation, probCopAfterCopValues, probCopAfterDefValues, exeArguments)
+        createPopulationSnapshot(fig, ax, generation, probCopAfterCopValues, probCopAfterDefValues, exeArguments)
 
     ani = FuncAnimation(fig, update, frames=len(data), interval=50)
     ani.save(os.path.join(outputDir, "Population Animation.gif"), writer="pillow")
@@ -204,8 +201,9 @@ def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, out
 
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
-    ax.set_title(f"{IVname} vs Population Convergence\n{str(exeArguments)}")
-    # TODO: Make this title better and also dynamic
+    ax.set_title(f"{IVname} vs Population Convergence")
+
+    fig.text(0.01, 0.01, str(exeArguments))
 
     ax.set_xlabel("Miscommunication Rate")
     ax.set_xlim(min(IVvalues), max(IVvalues))
@@ -226,7 +224,10 @@ def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, out
     plt.close(fig)
 
 
-def runIPD(exeArguments: dict, folder: str, convergenceList: list):
+def runIPD(exeArguments: dict, folder: str, IV: tuple, convergenceList: list):
+    IVname = IV[0]
+    IVvalue = exeArguments[IVname]
+
     outputDir = getOutputDir(folder)
 
     allData = []
@@ -300,6 +301,6 @@ for i in IV[1]:
     folder = "Label test"
 
     print(f"Running IPD with", exeArguments)
-    runIPD(exeArguments, folder, DVvalues)
+    runIPD(exeArguments, folder, IV, DVvalues)
 
 createFinalGraph(IV, DVvalues, exeArguments, getOutputDir(folder))
