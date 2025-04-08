@@ -334,9 +334,9 @@ int main(int argc, char *argv[])
     double mutationStddev = 0.005;
     int totalGenerations = 10;
     int iterationCount = 100;
-    const int strategyCount = 50;
+    const int strategyCount = 100;
     double stabilityThreshold = 0.005;
-    int slidingWindowSize = 10;
+    int slidingWindowSize = 20;
 
     if (argc > 1)
     {
