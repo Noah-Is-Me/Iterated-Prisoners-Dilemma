@@ -90,30 +90,15 @@ except subprocess.CalledProcessError as e:
 commitFolderDir = os.path.join(workspaceDir, latestCommit)
 os.makedirs(commitFolderDir, exist_ok=True)
 
-def getOutputDir(folder:str=None):
+def getOutputDir(*folders):
 
-    # if (folder):
-    #     folderDir = os.path.join(commitFolderDir, folder)
-    #     os.makedirs(folderDir, exist_ok=True)
-    #     outputDir = os.path.join(folderDir, currentTime)
-    # else:
-    #     outputDir = os.path.join(commitFolderDir, currentTime)
-
-    if (folder):
-        outputDir = os.path.join(commitFolderDir, folder)
+    if folders:
+        outputDir = os.path.join(commitFolderDir, *folders)
     else:
         currentTime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         outputDir = os.path.join(commitFolderDir, currentTime)
-    
-    print(outputDir)
 
-    try:
-        os.makedirs(outputDir, exist_ok=True)
-    except OSError as e:
-        print(f"Error creating directory: {outputDir}")
-        print(e)
-        raise  # Raise the exception to halt execution and see the error details
-
+    os.makedirs(outputDir, exist_ok=True)
     return outputDir
 
 
@@ -173,7 +158,7 @@ def createAverageStrategyGraph(generationValues: list, probCopAfterCopValues: li
     ax.legend(loc="upper right")
     #ax.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
     #plt.tight_layout()
-    plt.savefig(os.path.join(outputDir, f"Strategy vs Time at {IVname}={exeArguments[IVname]}.png"))
+    plt.savefig(os.path.join(outputDir, f"Strategy vs Time at {IVname}={exeArguments[IVname]}, {probCopAfterCopValues[4]}.png"))
     plt.close(fig)
 
 
@@ -225,8 +210,7 @@ def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, out
     ax.set_ylim(0,1)
     ax.grid(True)
 
-    probCopAfterCopValues = convergenceValues[::2]
-    probCopAfterDefValues = convergenceValues[1::2]
+    probCopAfterCopValues, probCopAfterDefValues = zip(*convergenceValues)
 
     ax.plot(IVvalues, probCopAfterCopValues, marker=".", label="Probability Cop after Cop")
     ax.plot(IVvalues, probCopAfterDefValues, marker=".", label="Probability Cop after Def")
@@ -238,11 +222,12 @@ def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, out
     plt.close(fig)
 
 
-def runIPD(exeArguments: dict, folder: str, IV: tuple, convergenceList: list):
+def runIPD(exeArguments: dict, folder: str, IV: tuple):
     IVname = IV[0]
     IVvalue = exeArguments[IVname]
 
-    outputDir = getOutputDir(folder)
+    currentIV = f"{IVname}={IVvalue}"
+    outputDir = getOutputDir(folder, currentIV)
 
     allData = []
 
@@ -283,32 +268,36 @@ def runIPD(exeArguments: dict, folder: str, IV: tuple, convergenceList: list):
             probCopAfterCopValues = [float(values[i].strip()) for i in range(0, len(values), 3)]
             probCopAfterDefValues = [float(values[i].strip()) for i in range(1, len(values), 3)]
             stabilityValues = [float(values[i].strip()) for i in range(2, len(values), 3)]
-            createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues, stabilityValues, outputDir, exeArguments)
+            createAverageStrategyGraph(list(range(0,len(probCopAfterCopValues))), probCopAfterCopValues, probCopAfterDefValues, stabilityValues, outputDir, exeArguments, IVname)
             continue
 
         else:
             print("[MISC] " + line)
             continue
 
-    convergenceList.append(getLastAverageValue(probCopAfterCopValues, exeArguments["slidingWindowSize"]))
-    convergenceList.append(getLastAverageValue(probCopAfterDefValues, exeArguments["slidingWindowSize"]))
+
     process.stdout.close()
     process.wait()
 
     # createAnimation(allData, exeArguments, outputDir)
     print(f"Graphs succesfully saved in: {outputDir}")
 
+    DVs = (getLastAverageValue(probCopAfterCopValues, exeArguments["slidingWindowSize"]), getLastAverageValue(probCopAfterDefValues, exeArguments["slidingWindowSize"]))
+    return DVs
 
-IV = ("miscommunicationRate", [0.001 * i for i in range(0,10)])
+
+IV = ("mutationStddev", [0.001 * i for i in range(0,1000)])
 DVvalues = []
+IVtrialCount = 5
+folder = "MutationStddev data 1"
 
 for i in IV[1]:
     exeArguments = {
         "miscommunicationRate": 0.0,
         "misexecutionRate": 0.0,
-        "mutationStddev": 0.001 * i,
+        "mutationStddev": 0.0,
         "generations": 1000,
-        "matchupIterations": 100,
+        "matchupIterations": 1000,
         "populationSize": 100, # doesn't work
         "stabilityThreshold": 0.01, # 0.005
         "slidingWindowSize": 20,
@@ -316,9 +305,19 @@ for i in IV[1]:
     }
     exeArguments[IV[0]] = i
 
-    folder = "MUTATION RATES"
 
-    print(f"Running IPD with", exeArguments)
-    runIPD(exeArguments, folder, IV, DVvalues)
+    CACconvergenceValues = []
+    CADconvergenceValues = []
+
+    for j in range(IVtrialCount):
+        print(f"Running IPD with", exeArguments)
+        (CACconvergence, CADconvergence) = runIPD(exeArguments, folder, IV)
+        CACconvergenceValues.append(CACconvergence)
+        CADconvergenceValues.append(CADconvergence)
+    
+    CACconvergenceAverage = np.average(CACconvergenceValues)
+    CADconvergenceAverage = np.average(CADconvergenceValues)
+
+    DVvalues.append((CACconvergenceAverage, CADconvergenceAverage))
 
 createFinalGraph(IV, DVvalues, exeArguments, getOutputDir(folder))
