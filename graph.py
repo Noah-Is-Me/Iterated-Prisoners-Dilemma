@@ -29,11 +29,11 @@ cppFile = "iterated-prisoners-dilemma.cpp"
 linkageFiles = ["helper.cpp", "strategy.cpp"]
 exeFile = "iterated-prisoners-dilemma.exe"
 
-# gppPath = r"/usr/bin/g++"
-# buildCommand = [gppPath, "-fdiagnostics-color=always", "-std=c++2a", "-g", cppFile, "-pthread", *linkageFiles, "-o", exeFile]
+gppPath = r"/usr/bin/g++"
+buildCommand = [gppPath, "-fdiagnostics-color=always", "-std=c++2a", "-g", cppFile, "-pthread", *linkageFiles, "-o", exeFile]
 
-gppPath = r"C:\msys64\ucrt64\bin\g++.exe"
-buildCommand = [gppPath, "-fdiagnostics-color=always", "-g", cppFile, *linkageFiles, "-o", exeFile]
+# gppPath = r"C:\msys64\ucrt64\bin\g++.exe"
+# buildCommand = [gppPath, "-fdiagnostics-color=always", "-g", cppFile, *linkageFiles, "-o", exeFile]
 
 if not os.path.exists(gppPath):
     print(f"Error: g++ compiler not found at {gppPath}")
@@ -234,8 +234,8 @@ def runIPD(exeArguments: dict, folder: str, IV: tuple):
     # print([os.path.join(os.getcwd(), exeFile), *(str(argument) for argument in exeArguments.values())])
 
     process = subprocess.Popen(
-        # [os.path.join(os.getcwd(), "iterated-prisoners-dilemma"), *(str(argument) for argument in exeArguments.values())],
-        [os.path.join(os.getcwd(), exeFile), *(str(argument) for argument in exeArguments.values())],
+        [os.path.join(os.getcwd(), "iterated-prisoners-dilemma"), *(str(argument) for argument in exeArguments.values())],
+        # [os.path.join(os.getcwd(), exeFile), *(str(argument) for argument in exeArguments.values())],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,  # Ensures the output is already decoded as text
@@ -286,10 +286,10 @@ def runIPD(exeArguments: dict, folder: str, IV: tuple):
     return DVs
 
 
-IV = ("mutationStddev", [0.001 * i for i in range(0,1000)])
+IV = ("mutationStddev", [0.001 * i for i in range(0,100)])
 DVvalues = []
-IVtrialCount = 5
-folder = "MutationStddev data 1"
+IVtrialCount = 3
+folder = "MutationStddev data 3"
 
 for i in IV[1]:
     exeArguments = {
@@ -297,7 +297,7 @@ for i in IV[1]:
         "misexecutionRate": 0.0,
         "mutationStddev": 0.0,
         "generations": 1000,
-        "matchupIterations": 1000,
+        "matchupIterations": 100,
         "populationSize": 100, # doesn't work
         "stabilityThreshold": 0.01, # 0.005
         "slidingWindowSize": 20,
