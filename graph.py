@@ -288,7 +288,7 @@ def runIPD(exeArguments: dict, folder: str, IV: tuple, convergenceList: list):
     print(f"Graphs succesfully saved in: {outputDir}")
 
 
-IV = ("miscommunicationRate", [0.001 * i for i in range(0,1000)])
+IV = ("miscommunicationRate", [0.001 * i for i in range(0,10)])
 DVvalues = []
 
 for i in IV[1]:
