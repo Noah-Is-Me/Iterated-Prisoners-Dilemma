@@ -37,7 +37,7 @@ if sys.platform == "win32": # Windows
 
 else: # Linux/Chromebook
     gppPath = r"/usr/bin/g++"
-    buildCommand = [gppPath, "-fdiagnostics-color=always", "-std=c++2a", "-g", "-O3", cppFile, "-pthread", *linkageFiles, "-o", exeFile]
+    buildCommand = [gppPath, "-fdiagnostics-color=always", "-std=c++2a", "-g", cppFile, "-pthread", "-o", exeFile, *linkageFiles]
 
 
 if not os.path.exists(gppPath):
@@ -237,10 +237,13 @@ def runIPD(exeArguments: dict, folder: str, IV: tuple):
     allData = []
 
     # print([os.path.join(os.getcwd(), exeFile), *(str(argument) for argument in exeArguments.values())])
-
+    if sys.platform == "win32": # Windows
+        runPath = exeFiles
+    else:
+        runPath = "iterated-prisoners-dilemma"
+    
     process = subprocess.Popen(
-        # [os.path.join(os.getcwd(), "iterated-prisoners-dilemma"), *(str(argument) for argument in exeArguments.values())],
-        [os.path.join(os.getcwd(), exeFile), *(str(argument) for argument in exeArguments.values())],
+        [os.path.join(os.getcwd(), runPath), *(str(argument) for argument in exeArguments.values())],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,  # Ensures the output is already decoded as text

@@ -40,6 +40,7 @@
                 "-fdiagnostics-color=always",
                 "-std=c++2a",
                 "-g",
+                "-O3",
                 "${file}",
                 "-pthread",
                 "-o",
