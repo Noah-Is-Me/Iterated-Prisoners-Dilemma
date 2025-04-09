@@ -5,7 +5,10 @@
 #include <unordered_map>
 #include <chrono>
 #include <thread>
+
+#ifdef __linux__
 #include <pthread.h>
+#endif
 
 #include "strategy.h"
 
@@ -111,7 +114,7 @@ void runRoundRobin(int generation, std::array<Strategy, N1> &strategies, double 
         }
         else
         {
-            runLineup(i, strategies, miscommunicationRate, miscommunicationRate, iterationCount);
+            runLineup(i, strategies, miscommunicationRate, misexecutionRate, iterationCount);
         }
     }
 
@@ -430,8 +433,8 @@ int main(int argc, char *argv[])
         stabilityValues.push_back(stability);
         if (stability <= stabilityThreshold)
         {
-            totalGenerations = generation;
             std::cout << "[NOTICE] STABLE AT: generation=" << generation << std::endl;
+            break;
         }
     }
 

@@ -43,7 +43,7 @@ double normalDist(double mean, double stddev)
 
 double clamp01(double n)
 {
-    return std::clamp(n, 0.0, 1.0);
+    return std::max(0.0, std::min(n, 1.0));
 }
 
 const int pointMatrix[2][2] = {

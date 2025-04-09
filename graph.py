@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
 import os
+import sys
 from datetime import datetime
 import signal
 import matplotlib.transforms as mtransforms
@@ -29,11 +30,15 @@ cppFile = "iterated-prisoners-dilemma.cpp"
 linkageFiles = ["helper.cpp", "strategy.cpp"]
 exeFile = "iterated-prisoners-dilemma.exe"
 
-gppPath = r"/usr/bin/g++"
-buildCommand = [gppPath, "-fdiagnostics-color=always", "-std=c++2a", "-g", cppFile, "-pthread", *linkageFiles, "-o", exeFile]
 
-# gppPath = r"C:\msys64\ucrt64\bin\g++.exe"
-# buildCommand = [gppPath, "-fdiagnostics-color=always", "-g", cppFile, *linkageFiles, "-o", exeFile]
+if sys.platform == "win32": # Windows
+    gppPath = r"C:\msys64\ucrt64\bin\g++.exe"
+    buildCommand = [gppPath, "-fdiagnostics-color=always", "-std=c++2a", "-g", "-O3", cppFile, *linkageFiles, "-o", exeFile]
+
+else: # Linux/Chromebook
+    gppPath = r"/usr/bin/g++"
+    buildCommand = [gppPath, "-fdiagnostics-color=always", "-std=c++2a", "-g", "-O3", cppFile, "-pthread", *linkageFiles, "-o", exeFile]
+
 
 if not os.path.exists(gppPath):
     print(f"Error: g++ compiler not found at {gppPath}")
@@ -234,8 +239,8 @@ def runIPD(exeArguments: dict, folder: str, IV: tuple):
     # print([os.path.join(os.getcwd(), exeFile), *(str(argument) for argument in exeArguments.values())])
 
     process = subprocess.Popen(
-        [os.path.join(os.getcwd(), "iterated-prisoners-dilemma"), *(str(argument) for argument in exeArguments.values())],
-        # [os.path.join(os.getcwd(), exeFile), *(str(argument) for argument in exeArguments.values())],
+        # [os.path.join(os.getcwd(), "iterated-prisoners-dilemma"), *(str(argument) for argument in exeArguments.values())],
+        [os.path.join(os.getcwd(), exeFile), *(str(argument) for argument in exeArguments.values())],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,  # Ensures the output is already decoded as text
@@ -289,7 +294,7 @@ def runIPD(exeArguments: dict, folder: str, IV: tuple):
 IV = ("mutationStddev", [0.001 * i for i in range(0,100)])
 DVvalues = []
 IVtrialCount = 3
-folder = "MutationStddev data 3"
+folder = "MutationStddev data test 1"
 
 for i in IV[1]:
     exeArguments = {
