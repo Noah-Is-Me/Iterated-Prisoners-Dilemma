@@ -10,9 +10,9 @@ import matplotlib.transforms as mtransforms
 from collections import Counter
 from matplotlib.animation import FuncAnimation
 import csv
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 print("Hello world!")
+
 
 process = None
 def cleanup(signal_received, frame):
@@ -202,6 +202,7 @@ def createAnimation(data: list, exeArguments: dict, outputDir: str):
 
 def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, outputDir: str):
     IVname = IV[0]
+    IVvalues = IV[1]
 
     fig, ax = plt.subplots()
     fig.set_size_inches(figureWidth, figureHeight)
@@ -209,17 +210,16 @@ def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, out
 
     fig.text(0.01, 0.01, str(exeArguments))
 
-    IVvalues, probCopAfterCopValues, probCopAfterDefValues = zip(*convergenceValues)
-
     ax.set_xlabel("Miscommunication Rate")
     ax.set_xlim(min(IVvalues), max(IVvalues))
     ax.set_ylabel("Probability")
     ax.set_ylim(0,1)
     ax.grid(True)
 
+    probCopAfterCopValues, probCopAfterDefValues = zip(*convergenceValues)
 
-    ax.plot(IVvalues, probCopAfterCopValues, marker=".", label="Probability Cop after Cop", linestyle="None")
-    ax.plot(IVvalues, probCopAfterDefValues, marker=".", label="Probability Cop after Def", linestyle="None")
+    ax.plot(IVvalues, probCopAfterCopValues, marker=".", label="Probability Cop after Cop")
+    ax.plot(IVvalues, probCopAfterDefValues, marker=".", label="Probability Cop after Def")
 
     ax.legend(loc="upper right")
     #ax.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
@@ -229,8 +229,6 @@ def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, out
 
 
 def runIPD(exeArguments: dict, folder: str, IV: tuple):
-    global process
-    
     IVname = IV[0]
     IVvalue = exeArguments[IVname]
 
@@ -297,10 +295,25 @@ def runIPD(exeArguments: dict, folder: str, IV: tuple):
     return DVs
 
 
-exeArguments = {
+IV = ("mutationStddev", [0.001 * i for i in range(0,1001)])
+DVvalues = []
+IVtrialCount = 15
+folder = "MutationStddev Data"
+
+csvOutputDir = getOutputDir(folder)
+csvFile = os.path.join(csvOutputDir, f"Raw_Data_{folder}.csv")
+
+with open(csvFile, mode="w", newline="") as file:
+    writer = csv.writer(file)
+    writer.writerow(["IV_Name", "IV_Value", "Trial", "Prob_Cop_After_Cop", "Prob_Cop_After_Def"])
+
+for IVvalue in IV[1]:
+    print(f"Running {IV[0]}={IVvalue}")
+
+    exeArguments = {
         "miscommunicationRate": 0.0,
         "misexecutionRate": 0.0,
-        "mutationStddev": 0.005, # 0.005
+        "mutationStddev": 0.005,
         "generations": 1000,
         "matchupIterations": 100,
         "populationSize": 100, # doesn't work
@@ -308,61 +321,27 @@ exeArguments = {
         "slidingWindowSize": 20,
         "parallelProcess": False
     }
+    exeArguments[IV[0]] = IVvalue
 
-
-IV = ("mutationStddev", [0.001 * i for i in range(0,1001)])
-IVtrialCount = 15
-folder = "Test"
-maxCores = 3
-
-
-
-
-csvOutputDir = getOutputDir(folder)
-csvFile = os.path.join(csvOutputDir, f"Raw_Data_{folder}.csv")
-with open(csvFile, mode="w", newline="") as file:
-    writer = csv.writer(file)
-    writer.writerow(["IV_Name", "IV_Value", "Trial", "Prob_Cop_After_Cop", "Prob_Cop_After_Def"])
-
-
-IVlevelArgs = [{**exeArguments, IV[0]: IVlevel} for IVlevel in IV[1]]
-
-
-def runIVlevel(IVname, IVlevel):
-    print(f"Running {IVname}={IVlevel}")
-    args = exeArguments.copy()
-    args[IVname] = IVlevel
 
     CACconvergenceValues = []
     CADconvergenceValues = []
 
-    csvRows = []
-
     for trial in range(IVtrialCount):
-        # print(f"[{IV[0]}={IVlevel}] Trial {trial+1}/{IVtrialCount}")
-        (CACconvergence, CADconvergence) = runIPD(args, folder, IV)
+        (CACconvergence, CADconvergence) = runIPD(exeArguments, folder, IV)
         CACconvergenceValues.append(CACconvergence)
         CADconvergenceValues.append(CADconvergence)
-        csvRows.append([IV[0], IVlevel, trial, CACconvergence, CADconvergence])
 
+        with open(csvFile, mode="a", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow([IV[0], IVvalue, trial, CACconvergence, CADconvergence])
+    
     CACconvergenceAverage = np.average(CACconvergenceValues)
     CADconvergenceAverage = np.average(CADconvergenceValues)
 
-    return (IVlevel, CACconvergenceAverage, CADconvergenceAverage, csvRows)
+    DVvalues.append((CACconvergenceAverage, CADconvergenceAverage))
 
+createFinalGraph(IV, DVvalues, exeArguments, getOutputDir(folder))
 
-DVvalues = []
-
-if __name__ == "__main__":
-    with ProcessPoolExecutor(max_workers=maxCores) as executor:
-        futures = [executor.submit(runIVlevel, IV[0], IVlevel) for IVlevel in IV[1]]
-
-        for future in as_completed(futures):
-            (IVlevel, CACconvergenceAverage, CADconvergenceAverage, csvRows) = future.result()
-            DVvalues.append((IVlevel, CACconvergenceAverage, CADconvergenceAverage))
-
-            with open(csvFile, mode="a", newline="") as file:
-                writer = csv.writer(file)
-                writer.writerows(csvRows)
-
-    createFinalGraph(IV, DVvalues, exeArguments, getOutputDir(folder))
+currentTime = datetime.now().strftime("%H:%M:%S")
+print("IPD Finished at", currentTime)

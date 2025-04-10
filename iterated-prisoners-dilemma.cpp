@@ -121,13 +121,13 @@ void runRoundRobin(int generation, std::array<Strategy, N1> &strategies, double 
     if (parallelProcessLineups)
         joinThreads(threads);
 
-    if (giveGenerationUpdates && generation % 5 == 0)
+    if (giveGenerationUpdates && generation % 50 == 0)
     {
         // int totalRounds = miscommunicationRates.size();
         auto roundEnd = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> roundDuration = roundEnd - roundStart;
         // double estimatedTime = roundDuration.count() * (totalRounds - (u + 1));
-        std::cout << "[NOTICE] Generation " << generation << " complete, Time: " << roundDuration.count() << " seconds" << std::endl;
+        // std::cout << "[NOTICE] Generation " << generation << " complete, Time: " << roundDuration.count() << " seconds" << std::endl;
         //<< "[NOTICE] Estimated time: " << estimatedTime << " seconds  (" << estimatedTime / 60 << " minutes)" << std::endl;
     }
 }
@@ -199,60 +199,38 @@ void outputSingleGenerationData(int generation, const std::array<Strategy, N1> &
 template <std::size_t N1>
 void generateOffspring(std::array<Strategy, N1> &strategies, double mutationStddev)
 {
+    std::vector<double> cumulative;
     int totalPoints = 0;
+
     for (const Strategy &strategy : strategies)
     {
         totalPoints += strategy.points;
-        // std::cout << "[NOTICE] " << strategy.points << std::endl;
+    }
+
+    double cumulativeSum = 0;
+    for (const Strategy &strategy : strategies)
+    {
+        cumulativeSum += static_cast<double>(strategy.points) / totalPoints;
+        cumulative.push_back(cumulativeSum); // e.g., [0.1, 0.25, 0.55, 1.0]
     }
 
     std::array<Strategy, N1> offspring;
-    int currentOffspring = 0;
 
-    for (const Strategy &strategy : strategies)
+    for (int i = 0; i < N1; ++i)
     {
-        double newFrequency = 1.0 * strategy.points / totalPoints;
-        // std::cout << newFrequency << std::endl;
+        double r = randomDouble();
+        auto it = std::lower_bound(cumulative.begin(), cumulative.end(), r);
+        int selectedIdx = std::distance(cumulative.begin(), it);
+        const Strategy &parent = strategies[selectedIdx];
 
-        // int offspringCount = std::round(newFrequency * N1);
-        int offspringCount = newFrequency * N1;
-
-        // std::cout << offspringCount << ", " << newFrequency << std::endl;
-
-        for (int i = 0; i < offspringCount; i++)
-        {
-            if (currentOffspring < N1)
-            {
-                double newProbcopAfterCop = clamp01(normalDist(strategy.probCopAfterCop, mutationStddev));
-                double newProbCopAfterDef = clamp01(normalDist(strategy.probCopAfterDef, mutationStddev));
-                double newProbCopFirst = clamp01(normalDist(strategy.probCopFirst, mutationStddev));
-                offspring[currentOffspring++].setup(newProbcopAfterCop, newProbCopAfterDef, newProbCopFirst);
-            }
-            else
-            { // offspring array is full
-                // std::cerr << "ERROR: too many offspring!" << std::endl;
-                strategies = std::move(offspring);
-                return;
-            }
-        }
-    }
-
-    // std::cout << "Count before extra: " << currentOffspring << std ::endl;
-
-    // randomly create offspring if offspring array has empty spaces (due to roundoff error)
-    while (currentOffspring < N1)
-    {
-        // std::cout << "EXTRA: " << currentOffspring << std ::endl;
-        Strategy &randomStrategy = strategies[randomInt(0, N1)];
-        double newProbcopAfterCop = clamp01(normalDist(randomStrategy.probCopAfterCop, mutationStddev));
-        double newProbCopAfterDef = clamp01(normalDist(randomStrategy.probCopAfterDef, mutationStddev));
-        double newProbCopFirst = clamp01(normalDist(randomStrategy.probCopFirst, mutationStddev));
-        offspring[currentOffspring++].setup(newProbcopAfterCop, newProbCopAfterDef, newProbCopFirst);
+        // Mutate
+        offspring[i].setup(
+            clamp01(normalDist(parent.probCopAfterCop, mutationStddev)),
+            clamp01(normalDist(parent.probCopAfterDef, mutationStddev)),
+            clamp01(normalDist(parent.probCopFirst, mutationStddev)));
     }
 
     strategies = std::move(offspring);
-
-    // TODO: Implement mutations
 }
 
 void outputData(const std::vector<GenerationData> &generationData, const std::vector<double> &stabilityValues)
@@ -324,7 +302,7 @@ int main(int argc, char *argv[])
 
     const int cores = std::thread::hardware_concurrency();
     const int maxThreads = cores;
-    std::cout << "[NOTICE] Cores: " << cores << std::endl;
+    // std::cout << "[NOTICE] Cores: " << cores << std::endl;
 
     bool parallelProcessLineups = false;
     /* Parallel process slows down speed because the matchup
@@ -354,6 +332,7 @@ int main(int argc, char *argv[])
         parallelProcessLineups = std::atof(argv[9]);
     }
 
+    /*
     std::cout << "[NOTICE]\n"
               << "miscommunicationRate: " << miscommunicationRate << "\n"
               << "misexecutionRate: " << misexecutionRate << "\n"
@@ -362,6 +341,7 @@ int main(int argc, char *argv[])
               << "iterationCount: " << iterationCount << "\n"
               << "strategyCount: " << strategyCount << "\n"
               << "parallelProcessLineups: " << parallelProcessLineups << std::endl;
+    */
 
     const int frameFrequency = 1;
 
@@ -433,7 +413,7 @@ int main(int argc, char *argv[])
         stabilityValues.push_back(stability);
         if (stability <= stabilityThreshold)
         {
-            std::cout << "[NOTICE] STABLE AT: generation=" << generation << std::endl;
+            // std::cout << "[NOTICE] STABLE AT: generation=" << generation << std::endl;
             break;
         }
     }
