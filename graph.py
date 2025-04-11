@@ -310,10 +310,10 @@ exeArguments = {
     }
 
 
-IV = ("mutationStddev", [0.001 * i for i in range(0,1001)])
+IV = ("mutationStddev", [0.0001 * i for i in range(0,1001)])
 IVtrialCount = 15
-folder = "Test"
-maxCores = 3
+folder = "MutationStddev Fine Data 2"
+maxCores = 10
 
 
 
