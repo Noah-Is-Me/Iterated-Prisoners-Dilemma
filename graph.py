@@ -310,9 +310,9 @@ exeArguments = {
     }
 
 
-IV = ("mutationStddev", [0.0001 * i for i in range(0,1001)])
+IV = ("slidingWindowSize", [1 * i for i in range(1,1001)])
 IVtrialCount = 15
-folder = "MutationStddev Fine Data 2"
+folder = "SlidingWindowSize"
 maxCores = 10
 
 
