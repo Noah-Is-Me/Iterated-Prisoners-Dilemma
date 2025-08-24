@@ -11,6 +11,9 @@ from collections import Counter
 from matplotlib.animation import FuncAnimation
 import csv
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import time
+from datetime import datetime, timedelta
+
 
 print("Hello world!")
 
@@ -200,7 +203,7 @@ def createAnimation(data: list, exeArguments: dict, outputDir: str):
     plt.close(fig)
 
 
-def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, outputDir: str):
+def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, IVtrialCount: int, outputDir: str):
     IVname = IV[0]
 
     fig, ax = plt.subplots()
@@ -209,7 +212,10 @@ def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, out
 
     fig.text(0.01, 0.01, str(exeArguments))
 
-    IVvalues, probCopAfterCopValues, probCopAfterDefValues = zip(*convergenceValues)
+    IVvalues, probCopAfterCopValues, CACstddev, probCopAfterDefValues, CADstddev = zip(*convergenceValues)
+
+    CACstderr = [stddev/np.sqrt(IVtrialCount) for stddev in CACstddev]
+    CADstderr = [stddev/np.sqrt(IVtrialCount) for stddev in CADstddev]
 
     ax.set_xlabel("Miscommunication Rate")
     ax.set_xlim(min(IVvalues), max(IVvalues))
@@ -218,8 +224,8 @@ def createFinalGraph(IV: tuple, convergenceValues: list, exeArguments: dict, out
     ax.grid(True)
 
 
-    ax.plot(IVvalues, probCopAfterCopValues, marker=".", label="Probability Cop after Cop", linestyle="None")
-    ax.plot(IVvalues, probCopAfterDefValues, marker=".", label="Probability Cop after Def", linestyle="None")
+    ax.errorbar(IVvalues, probCopAfterCopValues, yerr=CACstderr, capsize=4, marker=".", label="Probability Cop after Cop", linestyle="None")
+    ax.errorbar(IVvalues, probCopAfterDefValues, yerr=CADstderr, capsize=4, marker=".", label="Probability Cop after Def", linestyle="None")
 
     ax.legend(loc="upper right")
     #ax.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
@@ -300,21 +306,20 @@ def runIPD(exeArguments: dict, folder: str, IV: tuple):
 exeArguments = {
         "miscommunicationRate": 0.0,
         "misexecutionRate": 0.0,
-        "mutationStddev": 0.005, # 0.005
+        "mutationStddev": 0, # 0.005
         "generations": 1000,
         "matchupIterations": 100,
         "populationSize": 100, # doesn't work
         "stabilityThreshold": 0.01, # 0.005
         "slidingWindowSize": 20,
-        "parallelProcess": False
+        "parallelProcess": True
     }
 
 
-IV = ("slidingWindowSize", [1 * i for i in range(1,1001)])
-IVtrialCount = 15
-folder = "SlidingWindowSize"
-maxCores = 10
-
+IV = ("mutationStddev", [0.0001 * i for i in range(0,1001)])
+IVtrialCount = 100
+folder = "mut ON, 20sws 100t 0.01st"
+maxCores = 13
 
 
 
@@ -346,23 +351,36 @@ def runIVlevel(IVname, IVlevel):
         csvRows.append([IV[0], IVlevel, trial, CACconvergence, CADconvergence])
 
     CACconvergenceAverage = np.average(CACconvergenceValues)
+    CACstddev = np.std(CACconvergenceValues)
     CADconvergenceAverage = np.average(CADconvergenceValues)
+    CADstddev = np.std(CADconvergenceValues)
 
-    return (IVlevel, CACconvergenceAverage, CADconvergenceAverage, csvRows)
+    return (IVlevel, CACconvergenceAverage, CACstddev, CADconvergenceAverage, CADstddev, csvRows)
 
 
 DVvalues = []
+
+startTime = time.time()
+
 
 if __name__ == "__main__":
     with ProcessPoolExecutor(max_workers=maxCores) as executor:
         futures = [executor.submit(runIVlevel, IV[0], IVlevel) for IVlevel in IV[1]]
 
         for future in as_completed(futures):
-            (IVlevel, CACconvergenceAverage, CADconvergenceAverage, csvRows) = future.result()
-            DVvalues.append((IVlevel, CACconvergenceAverage, CADconvergenceAverage))
+            (IVlevel, CACconvergenceAverage, CACstddev, CADconvergenceAverage, CADstddev, csvRows) = future.result()
+            DVvalues.append((IVlevel, CACconvergenceAverage, CACstddev, CADconvergenceAverage, CADstddev))
 
             with open(csvFile, mode="a", newline="") as file:
                 writer = csv.writer(file)
                 writer.writerows(csvRows)
+            
+            elapsedTime = time.time() - startTime
+            remainingIVlevels = len(futures) - len(DVvalues)
+            avgTimePerIVlevel = elapsedTime / len(DVvalues)
+            estimatedRemainingTime = avgTimePerIVlevel * remainingIVlevels
 
-    createFinalGraph(IV, DVvalues, exeArguments, getOutputDir(folder))
+            print(f"Completed IV level {IVlevel}  ({len(DVvalues)}/{len(futures)}). Total elapsed time: {timedelta(seconds=int(elapsedTime))}, "
+                  f"Estimated remaining time: {timedelta(seconds=int(estimatedRemainingTime))}")
+
+    createFinalGraph(IV, DVvalues, exeArguments, IVtrialCount, getOutputDir(folder))
