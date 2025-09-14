@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load CSV
-filename = "Graphs/Collected Sliding Window Size IV Data/100trials, 250sws/Raw_Data_100trials, 250sws.csv"  # replace with your CSV file path
+filename = "Graphs/Collected Sliding Window Size IV Data/mut ON, 20sws 100t 0.01st/Raw_Data_mut ON, 20sws 100t 0.01st.csv"  # replace with your CSV file path
 df = pd.read_csv(filename)
 
 # Ensure numeric columns are read properly
@@ -18,7 +18,7 @@ grouped = df.groupby("IV_Value").agg(
     sem_cop_def=("Prob_Cop_After_Def", lambda x: np.std(x, ddof=1)/np.sqrt(len(x)))
 ).reset_index()
 
-plt.figure(figsize=(8,6))
+plt.figure(figsize=(10,8))
 
 # Scatter with error bars
 plt.errorbar(grouped["IV_Value"], grouped["mean_cop_cop"], yerr=grouped["sem_cop_cop"], 
@@ -35,3 +35,4 @@ plt.legend()
 plt.grid(True, linestyle="--", alpha=0.6)
 
 plt.show()
+plt.savefig("QUICK_PLOT.png")
