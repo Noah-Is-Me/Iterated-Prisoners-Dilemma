@@ -4,16 +4,13 @@ import numpy as np
 from scipy import stats, odr
 import statsmodels.api as sm
 
-
-# Load CSV
-filename = "Graphs/Collected Sliding Window Size IV Data/mut ON, 20sws 100t 0.01st/Raw_Data_mut ON, 20sws 100t 0.01st.csv"  # replace with your CSV file path
+# File path from root directory ( Graphs/commitName/folderName/fileName.csv )
+filename = "Graphs/Collected Sliding Window Size IV Data/mut ON, 20sws 100t 0.01st/Raw_Data_mut ON, 20sws 100t 0.01st.csv"
 df = pd.read_csv(filename)
 
-# Ensure numeric columns are read properly
 numeric_cols = ["IV_Value", "Trial", "Prob_Cop_After_Cop", "Prob_Cop_After_Def"]
 df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
 
-# Compute averages and standard errors per IV_Value
 grouped = df.groupby("IV_Value").agg(
     mean_cop_cop=("Prob_Cop_After_Cop", "mean"),
     # sem_cop_cop=("Prob_Cop_After_Cop", lambda x: np.std(x, ddof=1)),
@@ -27,12 +24,12 @@ grouped = df.groupby("IV_Value").agg(
 plt.figure(figsize=(20,16))
 
 
-# Scatter with error bars
 plt.errorbar(grouped["IV_Value"], grouped["mean_cop_cop"], yerr=grouped["sem_cop_cop"], 
              fmt='.', color="royalblue", capsize=4, label="Probability Cooperate After Cooperate (PCAC)")
 plt.errorbar(grouped["IV_Value"], grouped["mean_cop_def"], yerr=grouped["sem_cop_def"], 
              fmt='.', color="crimson", capsize=4, label="Probability Cooperate After Cooperate (PCAD)")
 
+# Linear regressions
 resultsCC = stats.linregress(grouped["IV_Value"], grouped["mean_cop_cop"])
 resultsCD = stats.linregress(grouped["IV_Value"], grouped["mean_cop_def"])
 
@@ -40,18 +37,18 @@ plt.plot(grouped["IV_Value"], resultsCC.intercept + resultsCC.slope*grouped["IV_
 plt.plot(grouped["IV_Value"], resultsCD.intercept + resultsCD.slope*grouped["IV_Value"], label='PCAD Linear Fit', color='darkred', lw=2, zorder=10, linestyle="--")
 
 
-
+# Polynomial regressions
 polyDegreeCC = 3
-poly_modelCC = odr.polynomial(polyDegreeCC)  # third degree polynomial
+poly_modelCC = odr.polynomial(polyDegreeCC) 
 odr_objCC = odr.ODR(odr.Data(grouped["IV_Value"], grouped["mean_cop_cop"]), poly_modelCC)
-outputCC = odr_objCC.run()  # running ODR fitting
+outputCC = odr_objCC.run() 
 polyCC = np.poly1d(outputCC.beta[::-1])
 poly_yCC = polyCC(grouped["IV_Value"])
 
 polyDegreeCD = 3
-poly_modelCD = odr.polynomial(polyDegreeCD)  # third degree polynomial
+poly_modelCD = odr.polynomial(polyDegreeCD) 
 odr_obj = odr.ODR(odr.Data(grouped["IV_Value"], grouped["mean_cop_def"]), poly_modelCD)
-output = odr_obj.run()  # running ODR fitting
+output = odr_obj.run() 
 polyCD = np.poly1d(output.beta[::-1])
 poly_yCD = polyCD(grouped["IV_Value"])
 
