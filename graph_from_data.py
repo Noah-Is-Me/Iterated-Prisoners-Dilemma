@@ -6,7 +6,7 @@ import statsmodels.api as sm
 
 
 # Load CSV
-filename = "Graphs/Collected Sliding Window Size IV Data/mut ON, 20sws 100t 0.01st/Raw_Data_mut ON, 20sws 100t 0.01st.csv"  # replace with your CSV file path
+filename = "Graphs/Performed regression analyses/Demo run/Raw_Data_DEMO RUN.csv"  # replace with your CSV file path
 df = pd.read_csv(filename)
 
 # Ensure numeric columns are read properly
@@ -117,7 +117,7 @@ plt.ylim(0, 0.4)
 plt.xticks(fontsize=18)
 plt.yticks(fontsize=18)
 
-plt.legend(fontsize=20)
+plt.legend(fontsize=16)
 plt.grid(True, linestyle="--", alpha=0.6)
 
 

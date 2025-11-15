@@ -304,12 +304,12 @@ def runIPD(exeArguments: dict, folder: str, IV: tuple):
 
 
 exeArguments = {
-        "miscommunicationRate": 0.0,
-        "misexecutionRate": 0.0,
+        "miscommunicationRate": 0.1,
+        "misexecutionRate": 0.05,
         "mutationStddev": 0, # 0.005
-        "generations": 1000,
-        "matchupIterations": 100,
-        "populationSize": 100, # doesn't work
+        "generations": 100,
+        "matchupIterations": 50,
+        "populationSize": 30, 
         "stabilityThreshold": 0.01, # 0.005
         "slidingWindowSize": 20,
         "parallelProcess": True
@@ -318,7 +318,7 @@ exeArguments = {
 
 IV = ("mutationStddev", [0.0001 * i for i in range(0,1001)])
 IVtrialCount = 100
-folder = "mut ON, 20sws 100t 0.01st"
+folder = "DEMO RUN"
 maxCores = 13
 
 
